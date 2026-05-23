@@ -61,11 +61,28 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Viewer card */}
+          <div
+            onClick={() => setMode("viewer")}
+            style={{ width:260, background:"#fff", border:"2px solid #e2e8f0", borderRadius:16, padding:"32px 28px", cursor:"pointer", textAlign:"center", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", transition:"transform 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#1e4d8c"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; }}
+          >
+            <div style={{ fontSize:48, marginBottom:16 }}>👁️</div>
+            <h2 style={{ margin:"0 0 8px", fontSize:20, fontWeight:800, color:"#1a2744" }}>Viewer Login</h2>
+            <p style={{ margin:"0 0 24px", fontSize:13, color:"#6b7a99", lineHeight:1.6 }}>
+              View dashboard and ratings — read only, no editing
+            </p>
+            <div style={{ background:"#1e4d8c", borderRadius:8, padding:"10px 20px", color:"#fff", fontWeight:700, fontSize:14 }}>
+              Login as Viewer →
+            </div>
+          </div>
+
           {/* Rater card */}
           <div
             onClick={() => setMode("rater")}
             style={{ width:260, background:"#fff", border:"2px solid #e2e8f0", borderRadius:16, padding:"32px 28px", cursor:"pointer", textAlign:"center", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", transition:"transform 0.15s" }}
-            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#1a3a6b"; }}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#0f766e"; }}
             onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; }}
           >
             <div style={{ fontSize:48, marginBottom:16 }}>⭐</div>
@@ -73,7 +90,7 @@ export default function LoginPage() {
             <p style={{ margin:"0 0 24px", fontSize:13, color:"#6b7a99", lineHeight:1.6 }}>
               Rate housekeeping quality for assigned plant areas each week
             </p>
-            <div style={{ background:"#1a3a6b", borderRadius:8, padding:"10px 20px", color:"#fff", fontWeight:700, fontSize:14 }}>
+            <div style={{ background:"#0f766e", borderRadius:8, padding:"10px 20px", color:"#fff", fontWeight:700, fontSize:14 }}>
               Login as Rater →
             </div>
           </div>
@@ -88,25 +105,28 @@ export default function LoginPage() {
 
   // Login form
   const isAdmin = mode === "admin";
+  const isViewer = mode === "viewer";
+  const modeColor = isAdmin ? "#1a3a6b" : isViewer ? "#1e4d8c" : "#0f766e";
+  const modeLabel = isAdmin ? "Admin" : isViewer ? "Viewer" : "Rater";
+  const modeIcon = isAdmin ? "🔑" : isViewer ? "👁️" : "⭐";
   return (
     <div style={{ minHeight:"100vh", background:"#f0f4f8", display:"flex", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
       {/* Left panel */}
-      <div style={{ width:"45%", background: isAdmin ? "#1a3a6b" : "#0f766e", display:"flex", flexDirection:"column", justifyContent:"center", padding:"60px 64px" }}>
+      <div style={{ width:"45%", background: modeColor, display:"flex", flexDirection:"column", justifyContent:"center", padding:"60px 64px" }}>
         <button
           onClick={() => { setMode("select"); setErr(""); setForm({ username:"", password:"" }); }}
           style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.3)", borderRadius:8, padding:"8px 16px", color:"rgba(255,255,255,0.8)", fontSize:13, cursor:"pointer", marginBottom:40, width:"fit-content" }}
         >
           ← Back
         </button>
-        <div style={{ fontSize:48, marginBottom:20 }}>{isAdmin ? "🔑" : "⭐"}</div>
+        <div style={{ fontSize:48, marginBottom:20 }}>{modeIcon}</div>
         <h1 style={{ color:"#fff", fontSize:28, fontWeight:800, margin:"0 0 12px" }}>
-          {isAdmin ? "Admin Portal" : "Rater Portal"}
+          {modeLabel} Portal
         </h1>
         <p style={{ color:"rgba(255,255,255,0.7)", fontSize:14, lineHeight:1.8, margin:"0 0 32px" }}>
-          {isAdmin
-            ? "Full administrative access to manage users, assessment months, plant settings and view all performance data."
-            : "Enter your weekly housekeeping grades for your assigned plant areas. Once saved, ratings are locked."
-          }
+          {isAdmin ? "Full administrative access to manage users, assessment months, plant settings and view all performance data."
+           : isViewer ? "View the full dashboard, weekly and monthly averages, area performance — read only, no editing."
+           : "Enter your weekly housekeeping grades for your assigned plant areas. Once saved, ratings are locked."}
         </p>
         <div style={{ borderTop:"1px solid rgba(255,255,255,0.2)", paddingTop:28 }}>
           {isAdmin ? (
@@ -145,8 +165,8 @@ export default function LoginPage() {
       <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:48 }}>
         <div style={{ width:"100%", maxWidth:400 }}>
           <div style={{ marginBottom:32 }}>
-            <span style={{ display:"inline-block", padding:"4px 12px", borderRadius:20, background: isAdmin ? "#eef4ff" : "#f0fdfa", color: isAdmin ? "#1a3a6b" : "#0f766e", fontSize:12, fontWeight:700, marginBottom:16, border: `1px solid ${isAdmin ? "#bdd0f0" : "#99f6e4"}` }}>
-              {isAdmin ? "🔑 ADMINISTRATOR" : "⭐ RATER"}
+            <span style={{ display:"inline-block", padding:"4px 12px", borderRadius:20, background:"#eef4ff", color: modeColor, fontSize:12, fontWeight:700, marginBottom:16, border:`1px solid #bdd0f0` }}>
+              {modeIcon} {modeLabel.toUpperCase()}
             </span>
             <h2 style={{ fontSize:24, fontWeight:700, color:"#1a2744", margin:"0 0 6px" }}>Sign in</h2>
             <p style={{ color:"#6b7a99", fontSize:14, margin:0 }}>Enter your credentials to continue</p>
@@ -160,7 +180,7 @@ export default function LoginPage() {
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               placeholder="Enter username"
               style={{ width:"100%", border:"1.5px solid #d1d9e6", borderRadius:8, padding:"11px 14px", fontSize:14, color:"#1a2744", outline:"none", boxSizing:"border-box", background:"#fff" }}
-              onFocus={e => e.target.style.borderColor = isAdmin ? "#1a3a6b" : "#0f766e"}
+              onFocus={e => e.target.style.borderColor = modeColor}
               onBlur={e => e.target.style.borderColor="#d1d9e6"}
             />
           </div>
@@ -173,7 +193,7 @@ export default function LoginPage() {
               onKeyDown={e => e.key === "Enter" && handleLogin()}
               placeholder="••••••••"
               style={{ width:"100%", border:"1.5px solid #d1d9e6", borderRadius:8, padding:"11px 14px", fontSize:14, color:"#1a2744", outline:"none", boxSizing:"border-box", background:"#fff" }}
-              onFocus={e => e.target.style.borderColor = isAdmin ? "#1a3a6b" : "#0f766e"}
+              onFocus={e => e.target.style.borderColor = modeColor}
               onBlur={e => e.target.style.borderColor="#d1d9e6"}
             />
           </div>
@@ -187,9 +207,9 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            style={{ width:"100%", background: isAdmin ? "#1a3a6b" : "#0f766e", border:"none", borderRadius:8, padding:"13px", color:"#fff", fontSize:15, fontWeight:700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
+            style={{ width:"100%", background: modeColor, border:"none", borderRadius:8, padding:"13px", color:"#fff", fontSize:15, fontWeight:700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
           >
-            {loading ? "Signing in…" : `Sign In as ${isAdmin ? "Admin" : "Rater"} →`}
+            {loading ? "Signing in…" : `Sign In as ${modeLabel} →`}
           </button>
 
           {isAdmin && (
