@@ -1,179 +1,205 @@
-import { useState, useEffect } from "react";
-import { Toaster } from "react-hot-toast";
-import { AuthProvider, useAuth } from "./hooks/useAuth";
-import LoginPage from "./pages/LoginPage";
-import DashboardPage from "./pages/DashboardPage";
-import RatingsPage from "./pages/RatingsPage";
-import AdminPage from "./pages/AdminPage";
-import api from "./utils/api";
+import { useState } from "react";
+import { useAuth } from "../hooks/useAuth";
+import toast from "react-hot-toast";
 
-function RaterLayout({ user, logout }) {
-  const [currentMonth, setCurrentMonth] = useState(null);
+export default function LoginPage() {
+  const { login } = useAuth();
+  const [mode, setMode] = useState("select"); // "select" | "admin" | "rater"
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    api.get("/months/current").then(r => setCurrentMonth(r.data)).catch(() => {});
-  }, []);
-
-  return (
-    <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
-      {/* Simple top bar */}
-      <div style={{ background:"#0f766e", padding:"0 28px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:32, height:32, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>⚙</div>
-          <div>
-            <span style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</span>
-            <span style={{ color:"rgba(255,255,255,0.6)", fontSize:12, marginLeft:8 }}>Housekeeping Ratings</span>
-          </div>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-          {currentMonth && (
-            <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.15)", padding:"4px 12px", borderRadius:20 }}>
-              📅 {currentMonth.month_label}
-              {currentMonth.is_locked && " 🔒"}
-            </span>
-          )}
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ width:28, height:28, borderRadius:"50%", background:"#f59e0b", display:"flex", alignItems:"center", justifyContent:"center", color:"#1a2744", fontWeight:800, fontSize:12 }}>
-              {(user.full_name || user.username)[0].toUpperCase()}
-            </div>
-            <span style={{ color:"rgba(255,255,255,0.9)", fontSize:13 }}>{user.full_name || user.username}</span>
-          </div>
-          <button onClick={logout} style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, padding:"5px 12px", color:"#fff", fontSize:12, cursor:"pointer" }}>
-            Sign Out
-          </button>
-        </div>
-      </div>
-
-      {/* Rater notice */}
-      <div style={{ background:"#f0fdfa", borderBottom:"1px solid #99f6e4", padding:"10px 28px", display:"flex", alignItems:"center", gap:8 }}>
-        <span style={{ fontSize:13, color:"#0f766e" }}>
-          ⭐ <strong>Rater Access</strong> — Enter grades below. Once saved, ratings are submitted and locked. Contact admin to make changes.
-        </span>
-      </div>
-
-      <div style={{ padding:28 }}>
-        <RatingsPage currentMonth={currentMonth} initialAreaId={null} />
-      </div>
-    </div>
-  );
-}
-
-function AdminLayout({ user, logout, can }) {
-  const [page, setPage] = useState("dashboard");
-  const [ratingAreaId, setRatingAreaId] = useState(null);
-  const [currentMonth, setCurrentMonth] = useState(null);
-  const [months, setMonths] = useState([]);
-  const [selectedMonthId, setSelectedMonthId] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  function loadMonths() {
-    api.get("/months").then(r => {
-      setMonths(r.data);
-      const cur = r.data.find(m => m.is_current);
-      if (!selectedMonthId && cur) setSelectedMonthId(cur.id);
-      if (!currentMonth && cur) setCurrentMonth(cur);
-    }).catch(() => {});
+  async function handleLogin() {
+    if (!form.username || !form.password) { setErr("Enter username and password"); return; }
+    setLoading(true); setErr("");
+    try {
+      const user = await login(form.username, form.password);
+      // Validate role matches selected mode
+      if (mode === "admin" && !user.is_admin && !user.can_manage_users) {
+        setErr("This account does not have admin access.");
+        setLoading(false);
+        return;
+      }
+      if (mode === "rater" && user.is_admin) {
+        setErr("Admins should use the Admin Login.");
+        setLoading(false);
+        return;
+      }
+      toast.success("Welcome!");
+    } catch (e) {
+      setErr(e.response?.data?.error || "Invalid credentials");
+    } finally { setLoading(false); }
   }
 
-  useEffect(() => { loadMonths(); }, []);
-
-  useEffect(() => {
-    if (selectedMonthId && months.length) setCurrentMonth(months.find(m => m.id === selectedMonthId) || null);
-  }, [selectedMonthId, months]);
-
-  const NAV = [
-    { id:"dashboard", label:"Dashboard", icon:"▦" },
-    { id:"ratings", label:"Ratings", icon:"★" },
-    { id:"admin", label:"Admin", icon:"⚙", show: user.is_admin || can("can_manage_users") },
-  ].filter(n => n.show !== false);
-
-  return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
-      {/* Sidebar */}
-      <div style={{ width: sidebarOpen ? 240 : 64, background:"#1a3a6b", display:"flex", flexDirection:"column", transition:"width 0.2s", flexShrink:0, position:"relative" }}>
-        <div style={{ padding: sidebarOpen ? "24px 20px 20px" : "24px 12px 20px", borderBottom:"1px solid #2a5490" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:36, height:36, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>⚙</div>
-            {sidebarOpen && <div><div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div><div style={{ color:"#93b4d4", fontSize:10, letterSpacing:0.8 }}>ADMIN PORTAL</div></div>}
-          </div>
+  // Selection screen
+  if (mode === "select") {
+    return (
+      <div style={{ minHeight:"100vh", background:"#f0f4f8", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"'Segoe UI',system-ui,sans-serif", padding:24 }}>
+        {/* Header */}
+        <div style={{ textAlign:"center", marginBottom:48 }}>
+          <div style={{ width:60, height:60, background:"#f59e0b", borderRadius:16, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:28, marginBottom:16 }}>⚙</div>
+          <h1 style={{ margin:"0 0 6px", fontSize:26, fontWeight:800, color:"#1a2744" }}>SAI WARDHA</h1>
+          <p style={{ margin:0, fontSize:13, color:"#6b7a99", letterSpacing:1, textTransform:"uppercase" }}>Power Generation Pvt Ltd — KD3 Portal</p>
         </div>
 
-        {sidebarOpen && (
-          <div style={{ padding:"16px 16px 0" }}>
-            <label style={{ display:"block", fontSize:10, color:"#93b4d4", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Assessment Month</label>
-            <select value={selectedMonthId || ""} onChange={e => setSelectedMonthId(parseInt(e.target.value))}
-              style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
-              {months.map(m => <option key={m.id} value={m.id}>{m.month_label}{m.is_current?" ★":""}{m.is_locked?" 🔒":""}</option>)}
-            </select>
-          </div>
-        )}
-
-        <nav style={{ padding:"16px 10px", flex:1 }}>
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => setPage(n.id)} style={{
-              width:"100%", display:"flex", alignItems:"center", gap:12,
-              padding: sidebarOpen ? "10px 12px" : "10px", borderRadius:8, border:"none", cursor:"pointer", marginBottom:4,
-              background: page === n.id ? "#fff" : "transparent",
-              color: page === n.id ? "#1a3a6b" : "#93b4d4",
-              fontWeight: page === n.id ? 700 : 400, fontSize:14,
-              justifyContent: sidebarOpen ? "flex-start" : "center"
-            }}>
-              <span style={{ fontSize:16, flexShrink:0 }}>{n.icon}</span>
-              {sidebarOpen && <span>{n.label}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ padding:"16px 12px", borderBottom:"1px solid #2a5490" }}>
-          {sidebarOpen ? (
-            <div style={{ padding:"8px 12px", background:"#0f2a55", borderRadius:8, marginBottom:8 }}>
-              <p style={{ margin:0, fontSize:11, color:"#f59e0b", fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>🔑 Administrator</p>
-              <p style={{ margin:"2px 0 0", fontSize:12, color:"#93b4d4" }}>{user.full_name || user.username}</p>
+        {/* Two cards */}
+        <div style={{ display:"flex", gap:24, flexWrap:"wrap", justifyContent:"center" }}>
+          {/* Admin card */}
+          <div
+            onClick={() => setMode("admin")}
+            style={{ width:260, background:"#1a3a6b", borderRadius:16, padding:"32px 28px", cursor:"pointer", textAlign:"center", boxShadow:"0 8px 32px rgba(26,58,107,0.25)", transition:"transform 0.15s", position:"relative", overflow:"hidden" }}
+            onMouseEnter={e => e.currentTarget.style.transform="translateY(-4px)"}
+            onMouseLeave={e => e.currentTarget.style.transform="translateY(0)"}
+          >
+            <div style={{ fontSize:48, marginBottom:16 }}>🔑</div>
+            <h2 style={{ margin:"0 0 8px", fontSize:20, fontWeight:800, color:"#fff" }}>Admin Login</h2>
+            <p style={{ margin:"0 0 24px", fontSize:13, color:"#93b4d4", lineHeight:1.6 }}>
+              Full control — manage users, months, settings, view all reports & penalties
+            </p>
+            <div style={{ background:"#f59e0b", borderRadius:8, padding:"10px 20px", color:"#1a2744", fontWeight:700, fontSize:14 }}>
+              Login as Admin →
             </div>
-          ) : null}
-          <button onClick={logout} style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"7px", color:"#93b4d4", fontSize:12, cursor:"pointer" }}>
-            {sidebarOpen ? "Sign Out" : "⏏"}
-          </button>
+          </div>
+
+          {/* Rater card */}
+          <div
+            onClick={() => setMode("rater")}
+            style={{ width:260, background:"#fff", border:"2px solid #e2e8f0", borderRadius:16, padding:"32px 28px", cursor:"pointer", textAlign:"center", boxShadow:"0 8px 32px rgba(0,0,0,0.08)", transition:"transform 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#1a3a6b"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; }}
+          >
+            <div style={{ fontSize:48, marginBottom:16 }}>⭐</div>
+            <h2 style={{ margin:"0 0 8px", fontSize:20, fontWeight:800, color:"#1a2744" }}>Rater Login</h2>
+            <p style={{ margin:"0 0 24px", fontSize:13, color:"#6b7a99", lineHeight:1.6 }}>
+              Rate housekeeping quality for assigned plant areas each week
+            </p>
+            <div style={{ background:"#1a3a6b", borderRadius:8, padding:"10px 20px", color:"#fff", fontWeight:700, fontSize:14 }}>
+              Login as Rater →
+            </div>
+          </div>
         </div>
 
-        <button onClick={() => setSidebarOpen(o => !o)} style={{ position:"absolute", top:20, right:-12, width:24, height:24, background:"#1a3a6b", border:"2px solid #2a5490", borderRadius:"50%", cursor:"pointer", color:"#93b4d4", fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          {sidebarOpen ? "◀" : "▶"}
+        <p style={{ marginTop:32, fontSize:12, color:"#94a3b8" }}>
+          Sai Wardha Housekeeping Quality Portal · KD3
+        </p>
+      </div>
+    );
+  }
+
+  // Login form
+  const isAdmin = mode === "admin";
+  return (
+    <div style={{ minHeight:"100vh", background:"#f0f4f8", display:"flex", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      {/* Left panel */}
+      <div style={{ width:"45%", background: isAdmin ? "#1a3a6b" : "#0f766e", display:"flex", flexDirection:"column", justifyContent:"center", padding:"60px 64px" }}>
+        <button
+          onClick={() => { setMode("select"); setErr(""); setForm({ username:"", password:"" }); }}
+          style={{ background:"transparent", border:"1px solid rgba(255,255,255,0.3)", borderRadius:8, padding:"8px 16px", color:"rgba(255,255,255,0.8)", fontSize:13, cursor:"pointer", marginBottom:40, width:"fit-content" }}
+        >
+          ← Back
         </button>
+        <div style={{ fontSize:48, marginBottom:20 }}>{isAdmin ? "🔑" : "⭐"}</div>
+        <h1 style={{ color:"#fff", fontSize:28, fontWeight:800, margin:"0 0 12px" }}>
+          {isAdmin ? "Admin Portal" : "Rater Portal"}
+        </h1>
+        <p style={{ color:"rgba(255,255,255,0.7)", fontSize:14, lineHeight:1.8, margin:"0 0 32px" }}>
+          {isAdmin
+            ? "Full administrative access to manage users, assessment months, plant settings and view all performance data."
+            : "Enter your weekly housekeeping grades for your assigned plant areas. Once saved, ratings are locked."
+          }
+        </p>
+        <div style={{ borderTop:"1px solid rgba(255,255,255,0.2)", paddingTop:28 }}>
+          {isAdmin ? (
+            <>
+              {[
+                "Manage users & roles",
+                "Lock/unlock assessment months",
+                "View penalties & export reports",
+                "Edit plant settings"
+              ].map(t => (
+                <div key={t} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                  <span style={{ color:"#f59e0b", fontSize:16 }}>✓</span>
+                  <span style={{ color:"rgba(255,255,255,0.8)", fontSize:13 }}>{t}</span>
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              {[
+                "Rate assigned plant areas",
+                "Enter grades for all 4 weeks",
+                "Add OEG & general remarks",
+                "Ratings lock after submission"
+              ].map(t => (
+                <div key={t} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                  <span style={{ color:"#f59e0b", fontSize:16 }}>✓</span>
+                  <span style={{ color:"rgba(255,255,255,0.8)", fontSize:13 }}>{t}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Main */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 28px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-          <div>
-            <h1 style={{ margin:0, fontSize:17, fontWeight:700, color:"#1a2744" }}>{NAV.find(n=>n.id===page)?.label}</h1>
-            {currentMonth && <p style={{ margin:0, fontSize:12, color:"#6b7a99" }}>{currentMonth.month_label}{currentMonth.is_locked && <span style={{ marginLeft:8, color:"#f59e0b", fontWeight:600 }}>🔒 Locked</span>}</p>}
+      {/* Right panel */}
+      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:48 }}>
+        <div style={{ width:"100%", maxWidth:400 }}>
+          <div style={{ marginBottom:32 }}>
+            <span style={{ display:"inline-block", padding:"4px 12px", borderRadius:20, background: isAdmin ? "#eef4ff" : "#f0fdfa", color: isAdmin ? "#1a3a6b" : "#0f766e", fontSize:12, fontWeight:700, marginBottom:16, border: `1px solid ${isAdmin ? "#bdd0f0" : "#99f6e4"}` }}>
+              {isAdmin ? "🔑 ADMINISTRATOR" : "⭐ RATER"}
+            </span>
+            <h2 style={{ fontSize:24, fontWeight:700, color:"#1a2744", margin:"0 0 6px" }}>Sign in</h2>
+            <p style={{ color:"#6b7a99", fontSize:14, margin:0 }}>Enter your credentials to continue</p>
           </div>
-        </div>
-        <div style={{ flex:1, overflow:"auto", padding:28 }}>
-          {page==="dashboard" && <DashboardPage currentMonth={currentMonth} months={months} onNavigateRatings={id => { setRatingAreaId(id); setPage("ratings"); }} />}
-          {page==="ratings" && <RatingsPage currentMonth={currentMonth} initialAreaId={ratingAreaId} />}
-          {page==="admin" && <AdminPage currentMonth={currentMonth} months={months} onMonthChange={loadMonths} />}
+
+          <div style={{ marginBottom:18 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#374151", marginBottom:6 }}>Username</label>
+            <input
+              value={form.username}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              placeholder="Enter username"
+              style={{ width:"100%", border:"1.5px solid #d1d9e6", borderRadius:8, padding:"11px 14px", fontSize:14, color:"#1a2744", outline:"none", boxSizing:"border-box", background:"#fff" }}
+              onFocus={e => e.target.style.borderColor = isAdmin ? "#1a3a6b" : "#0f766e"}
+              onBlur={e => e.target.style.borderColor="#d1d9e6"}
+            />
+          </div>
+          <div style={{ marginBottom:24 }}>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#374151", marginBottom:6 }}>Password</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && handleLogin()}
+              placeholder="••••••••"
+              style={{ width:"100%", border:"1.5px solid #d1d9e6", borderRadius:8, padding:"11px 14px", fontSize:14, color:"#1a2744", outline:"none", boxSizing:"border-box", background:"#fff" }}
+              onFocus={e => e.target.style.borderColor = isAdmin ? "#1a3a6b" : "#0f766e"}
+              onBlur={e => e.target.style.borderColor="#d1d9e6"}
+            />
+          </div>
+
+          {err && (
+            <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, padding:"10px 14px", marginBottom:20, color:"#dc2626", fontSize:13 }}>
+              ⚠ {err}
+            </div>
+          )}
+
+          <button
+            onClick={handleLogin}
+            disabled={loading}
+            style={{ width:"100%", background: isAdmin ? "#1a3a6b" : "#0f766e", border:"none", borderRadius:8, padding:"13px", color:"#fff", fontSize:15, fontWeight:700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? "Signing in…" : `Sign In as ${isAdmin ? "Admin" : "Rater"} →`}
+          </button>
+
+          {isAdmin && (
+            <div style={{ marginTop:24, padding:"14px 18px", background:"#f8fafc", borderRadius:8, border:"1px solid #e2e8f0" }}>
+              <p style={{ margin:"0 0 6px", fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:0.5 }}>Default Admin</p>
+              <p style={{ margin:0, fontSize:13, color:"#475569" }}>admin / admin123</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
-  );
-}
-
-function Layout() {
-  const { user, logout, can } = useAuth();
-  if (!user) return <LoginPage />;
-  // Raters get minimal layout
-  if (!user.is_admin && !can("can_manage_users") && !can("can_view_penalties") && !can("can_export")) {
-    return <RaterLayout user={user} logout={logout} />;
-  }
-  return <AdminLayout user={user} logout={logout} can={can} />;
-}
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <Toaster position="top-right" toastOptions={{ style: { background:"#1a3a6b", color:"#fff", borderRadius:8 } }} />
-      <Layout />
-    </AuthProvider>
   );
 }
