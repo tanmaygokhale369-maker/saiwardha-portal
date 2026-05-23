@@ -1,0 +1,51 @@
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const { getDb } = require("../db/init");
+const { generateToken, authenticate } = require("../middleware/auth");
+
+const router = express.Router();
+
+router.post("/login", (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+
+    const db = getDb();
+    const user = db.prepare(`
+      SELECT u.id, u.username, u.password_hash, u.full_name, u.role_id, u.is_active,
+             r.can_rate, r.can_view_penalties, r.can_add_remarks,
+             r.can_export, r.can_manage_users, r.can_manage_settings,
+             r.is_admin, r.name as role_name
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.username = ? AND u.is_active = 1
+    `).get(username.toLowerCase().trim());
+
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = generateToken(user);
+    const { password_hash, ...safeUser } = user;
+    res.json({ token, user: safeUser });
+  } catch(e) { next(e); }
+});
+
+router.get("/me", authenticate, (req, res) => {
+  const { password_hash, ...safeUser } = req.user;
+  res.json(safeUser);
+});
+
+router.post("/change-password", authenticate, (req, res, next) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) return res.status(400).json({ error: "Both passwords required" });
+    if (new_password.length < 6) return res.status(400).json({ error: "Min 6 characters" });
+    const db = getDb();
+    const user = db.prepare("SELECT * FROM users WHERE id=?").get(req.user.id);
+    if (!bcrypt.compareSync(current_password, user.password_hash)) return res.status(401).json({ error: "Wrong current password" });
+    db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(bcrypt.hashSync(new_password, 10), req.user.id);
+    res.json({ message: "Password changed" });
+  } catch(e) { next(e); }
+});
+
+module.exports = router;
