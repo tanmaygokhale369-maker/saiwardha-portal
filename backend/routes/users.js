@@ -42,28 +42,28 @@ router.delete("/roles/:id", requireAdmin, (req, res, next) => {
 
 router.get("/users", requirePermission("can_manage_users"), (req, res, next) => {
   try {
-    res.json(getDb().prepare("SELECT u.id,u.username,u.full_name,u.is_active,u.created_at,r.name as role_name,r.id as role_id,r.is_admin FROM users u LEFT JOIN roles r ON u.role_id=r.id ORDER BY u.username").all());
+    res.json(getDb().prepare("SELECT u.id,u.username,u.full_name,u.is_active,u.created_at,u.assigned_area_id,r.name as role_name,r.id as role_id,r.is_admin FROM users u LEFT JOIN roles r ON u.role_id=r.id ORDER BY u.username").all());
   } catch(e) { next(e); }
 });
 
 router.post("/users", requirePermission("can_manage_users"), (req, res, next) => {
   try {
-    const { username, password, full_name, role_id } = req.body;
+    const { username, password, full_name, role_id, assigned_area_id } = req.body;
     if (!username || !password || !role_id) return res.status(400).json({ error: "Username, password and role required" });
     if (password.length < 6) return res.status(400).json({ error: "Password min 6 chars" });
     const db = getDb();
     if (db.prepare("SELECT id FROM users WHERE username=?").get(username.toLowerCase().trim())) return res.status(400).json({ error: "Username exists" });
-    db.prepare("INSERT INTO users (username,password_hash,full_name,role_id) VALUES (?,?,?,?)").run(username.toLowerCase().trim(), bcrypt.hashSync(password,10), full_name||"", parseInt(role_id));
+    db.prepare("INSERT INTO users (username,password_hash,full_name,role_id,assigned_area_id) VALUES (?,?,?,?,?)").run(username.toLowerCase().trim(), bcrypt.hashSync(password,10), full_name||"", parseInt(role_id), assigned_area_id||null);
     res.json({ message: "User created" });
   } catch(e) { next(e); }
 });
 
 router.put("/users/:id", requirePermission("can_manage_users"), (req, res, next) => {
   try {
-    const { full_name, role_id, is_active, password } = req.body;
+    const { full_name, role_id, is_active, password, assigned_area_id } = req.body;
     const db = getDb();
     if (password && password.length >= 6) db.prepare("UPDATE users SET password_hash=? WHERE id=?").run(bcrypt.hashSync(password,10), parseInt(req.params.id));
-    db.prepare("UPDATE users SET full_name=?,role_id=?,is_active=? WHERE id=?").run(full_name||"", parseInt(role_id), is_active?1:0, parseInt(req.params.id));
+    db.prepare("UPDATE users SET full_name=?,role_id=?,is_active=?,assigned_area_id=? WHERE id=?").run(full_name||"", parseInt(role_id), is_active?1:0, assigned_area_id||null, parseInt(req.params.id));
     res.json({ message: "Updated" });
   } catch(e) { next(e); }
 });

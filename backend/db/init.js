@@ -143,6 +143,7 @@ async function initDb() {
       password_hash TEXT NOT NULL,
       full_name TEXT,
       role_id INTEGER,
+      assigned_area_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       is_active INTEGER DEFAULT 1
     );
@@ -200,6 +201,10 @@ async function initDb() {
   `);
 
   seedData();
+
+  // Migrations for existing databases
+  try { db.exec("ALTER TABLE users ADD COLUMN assigned_area_id INTEGER"); } catch {}
+
   persistDb();
   console.log("Database ready.");
 }

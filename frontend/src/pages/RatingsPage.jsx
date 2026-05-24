@@ -5,38 +5,51 @@ import toast from "react-hot-toast";
 
 const WEEKS = [1,2,3,4];
 
-function GradeInput({ value, onChange, disabled, benchmark }) {
+function GradeInput({ value, onChange, disabled, locked, benchmark }) {
   const v = value !== null && value !== undefined && value !== "" ? parseFloat(value) : null;
-  const col = v === null ? "#94a3b8" : v >= benchmark ? "#16a34a" : v >= benchmark - 0.3 ? "#d97706" : "#dc2626";
-  const bg = v === null ? "#fff" : v >= benchmark ? "#f0fdf4" : v >= benchmark - 0.3 ? "#fffbeb" : "#fef2f2";
+  const col = locked ? "#94a3b8" : v === null ? "#94a3b8" : v >= benchmark ? "#16a34a" : v >= benchmark - 0.3 ? "#d97706" : "#dc2626";
+  const bg = locked ? "#f1f5f9" : v === null ? "#fff" : v >= benchmark ? "#f0fdf4" : v >= benchmark - 0.3 ? "#fffbeb" : "#fef2f2";
+
   return (
-    <input
-      type="number" min="0" max="5" step="0.1"
-      value={value === null || value === undefined ? "" : value}
-      onChange={e => onChange(e.target.value === "" ? null : parseFloat(e.target.value))}
-      disabled={disabled}
-      style={{
-        width:70, padding:"7px 8px", textAlign:"center", borderRadius:8, fontSize:14, fontWeight:700,
-        background: disabled ? "#f8fafc" : bg,
-        border: `1.5px solid ${col}`,
-        color: col, outline:"none",
-        cursor: disabled ? "not-allowed" : "text",
-        transition:"all 0.2s"
-      }}
-    />
+    <div style={{ position:"relative", display:"inline-block" }}>
+      <input
+        type="number" min="0" max="5" step="0.1"
+        value={value === null || value === undefined ? "" : value}
+        onChange={e => {
+          if (locked || disabled) return;
+          let val = e.target.value === "" ? null : parseFloat(e.target.value);
+          if (val !== null && val > 5) { val = 5; toast.error("Max grade is 5"); }
+          if (val !== null && val < 0) val = 0;
+          onChange(val);
+        }}
+        disabled={disabled || locked}
+        style={{
+          width:70, padding:"7px 8px", textAlign:"center", borderRadius:8, fontSize:14, fontWeight:700,
+          background: locked ? "#f1f5f9" : disabled ? "#f8fafc" : bg,
+          border: `1.5px solid ${locked ? "#cbd5e1" : col}`,
+          color: locked ? "#94a3b8" : col,
+          outline:"none", cursor: locked ? "not-allowed" : disabled ? "not-allowed" : "text",
+        }}
+      />
+      {locked && (
+        <span title="Submitted — contact admin to edit" style={{ position:"absolute", top:-6, right:-6, fontSize:10, background:"#64748b", color:"#fff", borderRadius:"50%", width:16, height:16, display:"flex", alignItems:"center", justifyContent:"center" }}>🔒</span>
+      )}
+    </div>
   );
 }
 
 export default function RatingsPage({ currentMonth, initialAreaId }) {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const [areas, setAreas] = useState([]);
   const [selectedAreaId, setSelectedAreaId] = useState(initialAreaId || null);
   const [ratingsData, setRatingsData] = useState({});
+  const [lockedData, setLockedData] = useState({});
   const [remarks, setRemarks] = useState({});
   const [summary, setSummary] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const canEdit = can("can_rate") && currentMonth && !currentMonth.is_locked;
+  const isAdmin = user?.is_admin;
 
   useEffect(() => {
     api.get("/areas").then(r => {
@@ -51,30 +64,36 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
     api.get(`/ratings/month/${currentMonth.id}/summary`).then(r => {
       setSummary(r.data);
       const ratingMap = {};
+      const lockMap = {};
       r.data.summary.forEach(area => {
         area.week_data.forEach(wd => {
           wd.grades.forEach(g => {
-            ratingMap[`${area.area_id}_${g.sub_id}_${wd.week}`] = g.grade;
+            const key = `${area.area_id}_${g.sub_id}_${wd.week}`;
+            ratingMap[key] = g.grade;
+            lockMap[key] = g.is_locked && !isAdmin; // admin can always edit
           });
         });
       });
       setRatingsData(ratingMap);
+      setLockedData(lockMap);
       const remarkMap = {};
       r.data.summary.forEach(area => {
-        area.remarks?.forEach(rem => {
-          remarkMap[`${area.area_id}_${rem.remark_type}`] = rem.remark_text;
-        });
+        area.remarks?.forEach(rem => { remarkMap[`${area.area_id}_${rem.remark_type}`] = rem.remark_text; });
       });
       setRemarks(remarkMap);
     }).catch(() => toast.error("Failed to load ratings"))
       .finally(() => setLoading(false));
-  }, [currentMonth]);
+  }, [currentMonth, isAdmin]);
 
   const selectedArea = areas.find(a => a.id === selectedAreaId);
   const benchmark = summary?.benchmark || 3.5;
 
   function getRating(areaId, subId, week) { return ratingsData[`${areaId}_${subId}_${week}`] ?? null; }
-  function setRating(areaId, subId, week, val) { setRatingsData(prev => ({ ...prev, [`${areaId}_${subId}_${week}`]: val })); }
+  function isLocked(areaId, subId, week) { return !!lockedData[`${areaId}_${subId}_${week}`]; }
+  function setRating(areaId, subId, week, val) {
+    if (isLocked(areaId, subId, week)) return;
+    setRatingsData(prev => ({ ...prev, [`${areaId}_${subId}_${week}`]: val }));
+  }
 
   function getWeekAvg(areaId, week) {
     const area = areas.find(a => a.id === areaId);
@@ -91,6 +110,14 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
     return avgs.reduce((s,n) => s+n, 0) / avgs.length;
   }
 
+  // Check if any grades for this area are already locked
+  function areaHasLockedGrades(areaId) {
+    const area = areas.find(a => a.id === areaId);
+    if (!area) return false;
+    const rows = area.sub_areas.length > 0 ? area.sub_areas : [{ id: null }];
+    return WEEKS.some(w => rows.some(sub => isLocked(areaId, sub.id || 0, w)));
+  }
+
   async function saveArea() {
     if (!canEdit || !selectedArea || !currentMonth) return;
     setSaving(true);
@@ -99,34 +126,60 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
       const ratings = [];
       rows.forEach(sub => {
         WEEKS.forEach(w => {
-          ratings.push({ area_id: selectedAreaId, sub_area_id: sub.id || null, week_number: w, grade: getRating(selectedAreaId, sub.id || 0, w) });
+          const grade = getRating(selectedAreaId, sub.id || 0, w);
+          if (grade !== null && grade !== undefined) {
+            ratings.push({ area_id: selectedAreaId, sub_area_id: sub.id || null, week_number: w, grade });
+          }
         });
       });
-      await api.post("/ratings/bulk", { month_id: currentMonth.id, ratings });
+
+      if (ratings.length === 0) { toast.error("No grades to save"); setSaving(false); return; }
+
+      const result = await api.post("/ratings/bulk", { month_id: currentMonth.id, ratings });
+
       if (can("can_add_remarks")) {
         await Promise.all([
           api.post("/remarks", { month_id: currentMonth.id, area_id: selectedAreaId, remark_type:"oeg", remark_text: remarks[`${selectedAreaId}_oeg`] || "" }),
           api.post("/remarks", { month_id: currentMonth.id, area_id: selectedAreaId, remark_type:"general", remark_text: remarks[`${selectedAreaId}_general`] || "" })
         ]);
       }
-      toast.success("Ratings saved successfully!");
+
+      // Reload to get updated lock status
+      const r = await api.get(`/ratings/month/${currentMonth.id}/summary`);
+      const lockMap = {};
+      const ratingMap = {};
+      r.data.summary.forEach(area => {
+        area.week_data.forEach(wd => {
+          wd.grades.forEach(g => {
+            const key = `${area.area_id}_${g.sub_id}_${wd.week}`;
+            ratingMap[key] = g.grade;
+            lockMap[key] = g.is_locked && !isAdmin;
+          });
+        });
+      });
+      setRatingsData(ratingMap);
+      setLockedData(lockMap);
+      setSummary(r.data);
+
+      if (result.data.skipped?.length > 0) {
+        toast("Some grades were already submitted and not changed. Ask admin to edit.", { icon:"⚠️" });
+      } else {
+        toast.success("Ratings submitted and locked!");
+      }
     } catch (e) {
       toast.error(e.response?.data?.error || "Save failed");
     } finally { setSaving(false); }
   }
 
-  if (loading) return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:300 }}>
-      <p style={{ color:"#6b7a99" }}>Loading ratings…</p>
-    </div>
-  );
+  if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:300 }}><p style={{ color:"#6b7a99" }}>Loading ratings…</p></div>;
 
   const monthlyAvg = selectedArea ? getMonthlyAvg(selectedAreaId) : null;
   const avgColor = monthlyAvg === null ? "#94a3b8" : monthlyAvg >= benchmark ? "#16a34a" : "#dc2626";
+  const hasLocked = selectedArea && areaHasLockedGrades(selectedAreaId);
 
   return (
     <div style={{ display:"flex", gap:20, alignItems:"flex-start" }}>
-      {/* Area list sidebar */}
+      {/* Area sidebar */}
       <div style={{ width:220, flexShrink:0, background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, overflow:"hidden" }}>
         <div style={{ padding:"12px 16px", borderBottom:"1px solid #f1f5f9", background:"#f8fafc" }}>
           <p style={{ margin:0, fontSize:11, fontWeight:700, color:"#6b7a99", textTransform:"uppercase", letterSpacing:0.6 }}>Plant Areas</p>
@@ -135,19 +188,22 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
           {areas.map(a => {
             const m = getMonthlyAvg(a.id);
             const dot = m === null ? "#cbd5e1" : m >= benchmark ? "#16a34a" : "#dc2626";
+            const hasLock = areaHasLockedGrades(a.id);
             const isSelected = selectedAreaId === a.id;
             return (
               <button key={a.id} onClick={() => setSelectedAreaId(a.id)} style={{
                 width:"100%", textAlign:"left", padding:"10px 16px", border:"none", cursor:"pointer",
                 background: isSelected ? "#eef4ff" : "transparent",
                 borderLeft: isSelected ? "3px solid #1a3a6b" : "3px solid transparent",
-                display:"flex", justifyContent:"space-between", alignItems:"center",
-                transition:"all 0.1s"
+                display:"flex", justifyContent:"space-between", alignItems:"center"
               }}>
                 <span style={{ fontSize:12, color: isSelected ? "#1a3a6b" : "#374151", fontWeight: isSelected ? 700 : 400, lineHeight:1.3 }}>
                   {a.area_number}. {a.area_name.length > 22 ? a.area_name.substring(0,22)+"…" : a.area_name}
                 </span>
-                <span style={{ width:8, height:8, borderRadius:"50%", background:dot, flexShrink:0, marginLeft:8 }}></span>
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  {hasLock && !isAdmin && <span title="Some grades locked" style={{ fontSize:10 }}>🔒</span>}
+                  <span style={{ width:8, height:8, borderRadius:"50%", background:dot, flexShrink:0 }}></span>
+                </div>
               </button>
             );
           })}
@@ -157,17 +213,22 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
       {/* Rating panel */}
       {selectedArea ? (
         <div style={{ flex:1 }}>
-          {/* Area header */}
+          {/* Header */}
           <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, padding:"20px 24px", marginBottom:16, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <h2 style={{ margin:"0 0 4px", fontSize:17, fontWeight:700, color:"#1a2744" }}>{selectedArea.area_name}</h2>
               <p style={{ margin:0, fontSize:13, color:"#6b7a99" }}>
                 In-Charge: <strong>{selectedArea.in_charge || "Not assigned"}</strong>
                 &nbsp;·&nbsp; Benchmark: <strong style={{ color:"#1a3a6b" }}>{benchmark}</strong>
-                {currentMonth?.is_locked && <span style={{ marginLeft:12, color:"#f59e0b", fontWeight:700 }}>🔒 Locked</span>}
+                {currentMonth?.is_locked && <span style={{ marginLeft:12, color:"#f59e0b", fontWeight:700 }}>🔒 Month Locked</span>}
               </p>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              {hasLocked && !isAdmin && (
+                <div style={{ background:"#fff7ed", border:"1px solid #fed7aa", borderRadius:8, padding:"6px 12px", fontSize:12, color:"#c2410c" }}>
+                  🔒 Submitted — contact admin to edit
+                </div>
+              )}
               <div style={{ textAlign:"center", padding:"10px 20px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0" }}>
                 <p style={{ margin:"0 0 2px", fontSize:11, color:"#6b7a99", textTransform:"uppercase", letterSpacing:0.5 }}>Monthly Avg</p>
                 <p style={{ margin:0, fontSize:24, fontWeight:800, color:avgColor }}>{monthlyAvg?.toFixed(3) || "—"}</p>
@@ -175,21 +236,20 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
               {canEdit && (
                 <button onClick={saveArea} disabled={saving} style={{
                   padding:"10px 24px", background:"#1a3a6b", border:"none", borderRadius:8,
-                  color:"#fff", fontSize:14, fontWeight:700, cursor: saving ? "not-allowed" : "pointer",
-                  opacity: saving ? 0.7 : 1
+                  color:"#fff", fontSize:14, fontWeight:700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1
                 }}>
-                  {saving ? "Saving…" : "💾 Save"}
+                  {saving ? "Saving…" : "💾 Submit"}
                 </button>
               )}
             </div>
           </div>
 
-          {/* Weekly avg summary row */}
+          {/* Week avg cards */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:16 }}>
             {WEEKS.map(w => {
               const avg = getWeekAvg(selectedAreaId, w);
-              const col = avg === null ? "#94a3b8" : avg >= benchmark ? "#16a34a" : avg >= benchmark - 0.3 ? "#d97706" : "#dc2626";
-              const bg = avg === null ? "#f8fafc" : avg >= benchmark ? "#f0fdf4" : avg >= benchmark - 0.3 ? "#fffbeb" : "#fef2f2";
+              const col = avg === null ? "#94a3b8" : avg >= benchmark ? "#16a34a" : avg >= benchmark-0.3 ? "#d97706" : "#dc2626";
+              const bg = avg === null ? "#f8fafc" : avg >= benchmark ? "#f0fdf4" : avg >= benchmark-0.3 ? "#fffbeb" : "#fef2f2";
               return (
                 <div key={w} style={{ background:bg, border:`1px solid ${col}40`, borderRadius:10, padding:"12px 16px", textAlign:"center" }}>
                   <p style={{ margin:"0 0 4px", fontSize:11, fontWeight:700, color:col, textTransform:"uppercase", letterSpacing:0.5 }}>Week {w}</p>
@@ -199,12 +259,14 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
             })}
           </div>
 
-          {/* Ratings table */}
+          {/* Grade inputs */}
           <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, overflow:"hidden", marginBottom:16 }}>
-            <div style={{ padding:"14px 24px", borderBottom:"1px solid #f1f5f9", background:"#f8fafc" }}>
+            <div style={{ padding:"14px 24px", borderBottom:"1px solid #f1f5f9", background:"#f8fafc", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <p style={{ margin:0, fontSize:12, fontWeight:700, color:"#6b7a99", textTransform:"uppercase", letterSpacing:0.6 }}>
-                {selectedArea.sub_areas.length > 0 ? "Sub-Area Grades" : "Area Grade"}
+                {selectedArea.sub_areas.length > 0 ? "Sub-Area Grades (max 5)" : "Area Grade (max 5)"}
               </p>
+              {!isAdmin && <p style={{ margin:0, fontSize:11, color:"#94a3b8" }}>🔒 = Already submitted, cannot be changed</p>}
+              {isAdmin && <p style={{ margin:0, fontSize:11, color:"#1a3a6b", fontWeight:600 }}>Admin — can edit all grades</p>}
             </div>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead>
@@ -220,7 +282,7 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
                 </tr>
               </thead>
               <tbody>
-                {(selectedArea.sub_areas.length > 0 ? selectedArea.sub_areas : [{ id: null, name: "Overall Rating" }]).map((sub, si) => (
+                {(selectedArea.sub_areas.length > 0 ? selectedArea.sub_areas : [{ id: null, name: "Overall Rating" }]).map((sub) => (
                   <tr key={sub.id || 0} style={{ borderBottom:"1px solid #f1f5f9" }}>
                     <td style={{ padding:"12px 24px", fontSize:13, color:"#374151", fontWeight:500 }}>{sub.name}</td>
                     {WEEKS.map(w => (
@@ -229,6 +291,7 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
                           value={getRating(selectedAreaId, sub.id || 0, w)}
                           onChange={val => setRating(selectedAreaId, sub.id || 0, w, val)}
                           disabled={!canEdit}
+                          locked={isLocked(selectedAreaId, sub.id || 0, w)}
                           benchmark={benchmark}
                         />
                       </td>
@@ -252,12 +315,7 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
                     disabled={!can("can_add_remarks") || currentMonth?.is_locked}
                     rows={3}
                     placeholder={`Enter ${t.label.toLowerCase()}…`}
-                    style={{
-                      width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8,
-                      padding:"10px 12px", fontSize:13, color:"#374151", resize:"vertical",
-                      boxSizing:"border-box", outline:"none", background: !can("can_add_remarks") ? "#f8fafc" : "#fff",
-                      fontFamily:"inherit"
-                    }}
+                    style={{ width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8, padding:"10px 12px", fontSize:13, color:"#374151", resize:"vertical", boxSizing:"border-box", outline:"none", fontFamily:"inherit", background: !can("can_add_remarks") ? "#f8fafc" : "#fff" }}
                     onFocus={e => e.target.style.borderColor="#1a3a6b"}
                     onBlur={e => e.target.style.borderColor="#e2e8f0"}
                   />
