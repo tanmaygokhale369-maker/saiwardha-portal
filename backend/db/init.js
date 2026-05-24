@@ -1,109 +1,64 @@
-const initSqlJs = require("sql.js");
+const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
-const path = require("path");
-const fs = require("fs");
 
-const DB_PATH = path.join(__dirname, "../data/saiwardha.db");
-let db = null;
-let saveTimer = null;
+let pool = null;
 
-function scheduleSave() {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(persistDb, 400);
+function getDb() {
+  if (!pool) throw new Error("DB not initialized");
+  return pool;
 }
 
-function persistDb() {
-  if (!db) return;
-  try {
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DB_PATH, Buffer.from(db._raw.export()));
-  } catch(e) { console.error("persist error:", e.message); }
-}
-
-function normalizeArgs(args) {
-  if (args.length === 0) return [];
-  if (args.length === 1 && Array.isArray(args[0])) return args[0];
-  return args;
-}
-
-function makeProxy(rawDb) {
+// Helper to make pg work like our sql.js wrapper
+function makeDb(pgPool) {
   return {
-    _raw: rawDb,
+    _pool: pgPool,
+
+    // Synchronous-style query (runs immediately, returns result)
+    query(sql, params = []) {
+      return pgPool.query(sql, params);
+    },
 
     prepare(sql) {
-      const isWrite = /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP)/i.test(sql);
+      // Convert ? placeholders to $1, $2... for PostgreSQL
+      let i = 0;
+      const pgSql = sql.replace(/\?/g, () => `$${++i}`);
+
       return {
-        run(...args) {
-          try {
-            const stmt = rawDb.prepare(sql);
-            const params = normalizeArgs(args);
-            if (params.length > 0) stmt.bind(params);
-            stmt.step();
-            stmt.free();
-            const res = rawDb.exec("SELECT last_insert_rowid()");
-            const lastId = res[0]?.values?.[0]?.[0] ?? null;
-            if (isWrite) scheduleSave();
-            return { lastInsertRowid: lastId };
-          } catch(e) {
-            console.error("DB run error:", e.message, "SQL:", sql.trim().substring(0,80));
-            throw e;
-          }
+        async run(...args) {
+          const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+          const result = await pgPool.query(pgSql, params);
+          return { lastInsertRowid: result.rows[0]?.id || null, rowCount: result.rowCount };
         },
-        get(...args) {
-          try {
-            const stmt = rawDb.prepare(sql);
-            const params = normalizeArgs(args);
-            if (params.length > 0) stmt.bind(params);
-            let result = undefined;
-            if (stmt.step()) result = stmt.getAsObject();
-            stmt.free();
-            return result;
-          } catch(e) {
-            console.error("DB get error:", e.message, "SQL:", sql.trim().substring(0,80));
-            throw e;
-          }
+        async get(...args) {
+          const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+          const result = await pgPool.query(pgSql, params);
+          return result.rows[0] || undefined;
         },
-        all(...args) {
-          try {
-            const stmt = rawDb.prepare(sql);
-            const params = normalizeArgs(args);
-            if (params.length > 0) stmt.bind(params);
-            const results = [];
-            while (stmt.step()) results.push(stmt.getAsObject());
-            stmt.free();
-            return results;
-          } catch(e) {
-            console.error("DB all error:", e.message, "SQL:", sql.trim().substring(0,80));
-            throw e;
-          }
+        async all(...args) {
+          const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+          const result = await pgPool.query(pgSql, params);
+          return result.rows;
         }
       };
     },
 
-    exec(sql) {
-      const isWrite = /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP)/i.test(sql);
-      try {
-        const result = rawDb.exec(sql);
-        if (isWrite) scheduleSave();
-        return result;
-      } catch(e) {
-        console.error("DB exec error:", e.message, "SQL:", sql.trim().substring(0,80));
-        throw e;
-      }
+    async exec(sql) {
+      return pgPool.query(sql);
     },
 
     transaction(fn) {
-      return (...args) => {
-        rawDb.exec("BEGIN");
+      return async (...args) => {
+        const client = await pgPool.connect();
         try {
-          const result = fn(...args);
-          rawDb.exec("COMMIT");
-          scheduleSave();
+          await client.query("BEGIN");
+          const result = await fn(...args);
+          await client.query("COMMIT");
           return result;
         } catch(e) {
-          try { rawDb.exec("ROLLBACK"); } catch {}
+          await client.query("ROLLBACK");
           throw e;
+        } finally {
+          client.release();
         }
       };
     }
@@ -111,23 +66,20 @@ function makeProxy(rawDb) {
 }
 
 async function initDb() {
-  const SQL = await initSqlJs();
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL environment variable not set");
 
-  let rawDb;
-  if (fs.existsSync(DB_PATH)) {
-    console.log("Loading existing database...");
-    rawDb = new SQL.Database(fs.readFileSync(DB_PATH));
-  } else {
-    console.log("Creating new database...");
-    rawDb = new SQL.Database();
-  }
-  db = makeProxy(rawDb);
+  const pgPool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false }
+  });
 
-  db.exec(`
+  pool = makeDb(pgPool);
+
+  // Create tables
+  await pgPool.query(`
     CREATE TABLE IF NOT EXISTS roles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT UNIQUE NOT NULL,
       can_rate INTEGER DEFAULT 0,
       can_view_penalties INTEGER DEFAULT 0,
@@ -137,101 +89,101 @@ async function initDb() {
       can_manage_settings INTEGER DEFAULT 0,
       is_admin INTEGER DEFAULT 0
     );
+
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       full_name TEXT,
-      role_id INTEGER,
+      role_id INTEGER REFERENCES roles(id),
       assigned_area_id INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       is_active INTEGER DEFAULT 1
     );
+
     CREATE TABLE IF NOT EXISTS plant_info (
-      id INTEGER PRIMARY KEY,
+      id INTEGER PRIMARY KEY DEFAULT 1,
       package_name TEXT DEFAULT 'SWPGPL Plant',
       benchmark REAL DEFAULT 3.5,
       key_deliverable_no TEXT DEFAULT '3',
       grade TEXT DEFAULT 'Grade 3.5',
       sla_description TEXT DEFAULT 'As per agreed SLA (Grade 3.5)',
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
     CREATE TABLE IF NOT EXISTS assessment_months (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       month_label TEXT NOT NULL,
       month_date TEXT NOT NULL,
       is_locked INTEGER DEFAULT 0,
       is_current INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
     CREATE TABLE IF NOT EXISTS areas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       area_number INTEGER NOT NULL,
       area_name TEXT NOT NULL,
       in_charge TEXT DEFAULT '',
       display_order INTEGER,
       is_active INTEGER DEFAULT 1
     );
+
     CREATE TABLE IF NOT EXISTS sub_areas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      area_id INTEGER NOT NULL,
+      id SERIAL PRIMARY KEY,
+      area_id INTEGER NOT NULL REFERENCES areas(id),
       name TEXT NOT NULL,
       display_order INTEGER
     );
+
     CREATE TABLE IF NOT EXISTS ratings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      month_id INTEGER NOT NULL,
-      area_id INTEGER NOT NULL,
-      sub_area_id INTEGER,
+      id SERIAL PRIMARY KEY,
+      month_id INTEGER NOT NULL REFERENCES assessment_months(id),
+      area_id INTEGER NOT NULL REFERENCES areas(id),
+      sub_area_id INTEGER REFERENCES sub_areas(id),
       week_number INTEGER NOT NULL,
       grade REAL,
-      rated_by INTEGER,
-      rated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      rated_by INTEGER REFERENCES users(id),
+      rated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
     CREATE TABLE IF NOT EXISTS remarks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      month_id INTEGER NOT NULL,
-      area_id INTEGER NOT NULL,
+      id SERIAL PRIMARY KEY,
+      month_id INTEGER NOT NULL REFERENCES assessment_months(id),
+      area_id INTEGER NOT NULL REFERENCES areas(id),
       week_number INTEGER,
       remark_type TEXT NOT NULL,
       remark_text TEXT DEFAULT '',
-      created_by INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
-  seedData();
-
-  // Migrations for existing databases
-  try { db.exec("ALTER TABLE users ADD COLUMN assigned_area_id INTEGER"); } catch {}
-
-  persistDb();
-  console.log("Database ready.");
+  await seedData(pgPool);
+  console.log("PostgreSQL database ready.");
 }
 
-function seedData() {
-  const existing = db.prepare("SELECT COUNT(*) as c FROM roles").get();
-  if (existing && existing.c > 0) {
-    console.log("Data already seeded, skipping.");
+async function seedData(pgPool) {
+  const existing = await pgPool.query("SELECT COUNT(*) as c FROM roles");
+  if (parseInt(existing.rows[0].c) > 0) {
+    console.log("Data already seeded.");
     return;
   }
   console.log("Seeding initial data...");
 
-  db.prepare("INSERT INTO roles (name,can_rate,can_view_penalties,can_add_remarks,can_export,can_manage_users,can_manage_settings,is_admin) VALUES (?,?,?,?,?,?,?,?)").run("Administrator",1,1,1,1,1,1,1);
-  db.prepare("INSERT INTO roles (name,can_rate,can_view_penalties,can_add_remarks,can_export,can_manage_users,can_manage_settings,is_admin) VALUES (?,?,?,?,?,?,?,?)").run("Viewer",0,1,0,1,0,0,0);
-  db.prepare("INSERT INTO roles (name,can_rate,can_view_penalties,can_add_remarks,can_export,can_manage_users,can_manage_settings,is_admin) VALUES (?,?,?,?,?,?,?,?)").run("Rater",1,0,1,0,0,0,0);
+  await pgPool.query(`INSERT INTO roles (name,can_rate,can_view_penalties,can_add_remarks,can_export,can_manage_users,can_manage_settings,is_admin) VALUES ('Administrator',1,1,1,1,1,1,1)`);
+  await pgPool.query(`INSERT INTO roles (name,can_rate,can_view_penalties,can_add_remarks,can_export,can_manage_users,can_manage_settings,is_admin) VALUES ('Viewer',0,1,0,1,0,0,0)`);
+  await pgPool.query(`INSERT INTO roles (name,can_rate,can_view_penalties,can_add_remarks,can_export,can_manage_users,can_manage_settings,is_admin) VALUES ('Rater',1,0,1,0,0,0,0)`);
 
-  const adminRole = db.prepare("SELECT id FROM roles WHERE name=?").get("Administrator");
-  const viewerRole = db.prepare("SELECT id FROM roles WHERE name=?").get("Viewer");
+  const adminRole = await pgPool.query("SELECT id FROM roles WHERE name='Administrator'");
+  const viewerRole = await pgPool.query("SELECT id FROM roles WHERE name='Viewer'");
 
-  db.prepare("INSERT OR IGNORE INTO users (username,password_hash,full_name,role_id) VALUES (?,?,?,?)").run(
-    "admin", bcrypt.hashSync("admin123", 10), "Administrator", adminRole.id
-  );
-  db.prepare("INSERT OR IGNORE INTO users (username,password_hash,full_name,role_id) VALUES (?,?,?,?)").run(
-    "viewer", bcrypt.hashSync("view123", 10), "Viewer", viewerRole.id
-  );
+  const adminHash = bcrypt.hashSync("admin123", 10);
+  const viewerHash = bcrypt.hashSync("view123", 10);
 
-  db.exec("INSERT OR IGNORE INTO plant_info (id,package_name,benchmark,key_deliverable_no,grade,sla_description) VALUES (1,'SWPGPL Plant',3.5,'3','Grade 3.5','As per agreed SLA (Grade 3.5)')");
+  await pgPool.query("INSERT INTO users (username,password_hash,full_name,role_id) VALUES ($1,$2,$3,$4)", ["admin", adminHash, "Administrator", adminRole.rows[0].id]);
+  await pgPool.query("INSERT INTO users (username,password_hash,full_name,role_id) VALUES ($1,$2,$3,$4)", ["viewer", viewerHash, "Viewer", viewerRole.rows[0].id]);
+  await pgPool.query("INSERT INTO plant_info (id,package_name,benchmark,key_deliverable_no,grade,sla_description) VALUES (1,'SWPGPL Plant',3.5,'3','Grade 3.5','As per agreed SLA (Grade 3.5)') ON CONFLICT (id) DO NOTHING");
 
   const areas = [
     {num:1,name:"Boiler upto 9 mtr Area",ic:"Mr. Manoj Binzade",subs:["0 Mtr","4.5 Mtr","9 Mtr","Firing Floor","9 Mtr Passage","Above 9 Mtr","Trench near IBD Tank","Feeder Staircase","Feeder Floor"]},
@@ -256,21 +208,22 @@ function seedData() {
     {num:20,name:"Main Gate to Sez Gate",ic:"Mr. Kharkar",subs:[]}
   ];
 
-  areas.forEach((a, i) => {
-    db.prepare("INSERT INTO areas (area_number,area_name,in_charge,display_order) VALUES (?,?,?,?)").run(a.num, a.name, a.ic, i + 1);
-    const areaRow = db.prepare("SELECT id FROM areas WHERE area_number=?").get(a.num);
-    a.subs.forEach((s, j) => {
-      db.prepare("INSERT INTO sub_areas (area_id,name,display_order) VALUES (?,?,?)").run(areaRow.id, s, j + 1);
-    });
-  });
+  for (let i = 0; i < areas.length; i++) {
+    const a = areas[i];
+    const aRes = await pgPool.query(
+      "INSERT INTO areas (area_number,area_name,in_charge,display_order) VALUES ($1,$2,$3,$4) RETURNING id",
+      [a.num, a.name, a.ic, i+1]
+    );
+    const areaId = aRes.rows[0].id;
+    for (let j = 0; j < a.subs.length; j++) {
+      await pgPool.query("INSERT INTO sub_areas (area_id,name,display_order) VALUES ($1,$2,$3)", [areaId, a.subs[j], j+1]);
+    }
+  }
 
-  db.prepare("INSERT INTO assessment_months (month_label,month_date,is_current,is_locked) VALUES (?,?,?,?)").run("April 2026", "2026-04-01", 1, 0);
+  await pgPool.query("INSERT INTO assessment_months (month_label,month_date,is_current,is_locked) VALUES ($1,$2,$3,$4)", ["May 2026","2026-05-01",1,0]);
   console.log("Seed complete.");
 }
 
-function getDb() {
-  if (!db) throw new Error("DB not initialized. Call initDb() first.");
-  return db;
-}
+function getPool() { return pool?._pool; }
 
-module.exports = { getDb, initDb, persistDb };
+module.exports = { getDb, initDb, getPool };
