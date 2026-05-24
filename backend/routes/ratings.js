@@ -41,8 +41,7 @@ router.get("/month/:monthId/summary", (req, res, next) => {
 
       const weekAvgs = weekData.map(w => w.avg).filter(v => v !== null);
       const monthlyAvg = weekAvgs.length ? weekAvgs.reduce((s,n) => s+n, 0) / weekAvgs.length : null;
-      const subCount = areaSubs.length > 0 ? areaSubs.length : 1;
-      const penalty = (monthlyAvg !== null && monthlyAvg < benchmark) ? (benchmark - monthlyAvg) * 10000 * subCount : 0;
+      const penalty = (monthlyAvg !== null && monthlyAvg < benchmark) ? (benchmark - monthlyAvg) * 10 * 1000 : 0;
 
       return {
         area_id: a.id, area_number: a.area_number, area_name: a.area_name,
