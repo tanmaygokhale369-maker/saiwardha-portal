@@ -40,17 +40,17 @@ router.delete("/roles/:id", requireAdmin, async (req, res, next) => {
 
 router.get("/users", requirePermission("can_manage_users"), async (req, res, next) => {
   try {
-    res.json(await getDb().prepare("SELECT u.id,u.username,u.full_name,u.is_active,u.created_at,u.assigned_area_id,r.name as role_name,r.id as role_id,r.is_admin FROM users u LEFT JOIN roles r ON u.role_id=r.id ORDER BY u.username").all());
+    res.json(await getDb().prepare("SELECT u.id,u.username,u.full_name,u.is_active,u.created_at,u.assigned_areas,r.name as role_name,r.id as role_id,r.is_admin FROM users u LEFT JOIN roles r ON u.role_id=r.id ORDER BY u.username").all());
   } catch(e) { next(e); }
 });
 
 router.post("/users", requirePermission("can_manage_users"), async (req, res, next) => {
   try {
-    const { username, password, full_name, role_id, assigned_area_id } = req.body;
+    const { username, password, full_name, role_id, assigned_areas } = req.body;
     if (!username || !password || !role_id) return res.status(400).json({ error: "Username, password and role required" });
     if (password.length < 6) return res.status(400).json({ error: "Password min 6 chars" });
-    await getDb().prepare("INSERT INTO users (username,password_hash,full_name,role_id,assigned_area_id) VALUES ($1,$2,$3,$4,$5)")
-      .run(username.toLowerCase().trim(), bcrypt.hashSync(password,10), full_name||"", parseInt(role_id), assigned_area_id||null);
+    await getDb().prepare("INSERT INTO users (username,password_hash,full_name,role_id,assigned_areas) VALUES ($1,$2,$3,$4,$5)")
+      .run(username.toLowerCase().trim(), bcrypt.hashSync(password,10), full_name||"", parseInt(role_id), assigned_areas||null);
     res.json({ message: "User created" });
   } catch(e) {
     if (e.code === "23505") return res.status(400).json({ error: "Username exists" });
@@ -60,10 +60,10 @@ router.post("/users", requirePermission("can_manage_users"), async (req, res, ne
 
 router.put("/users/:id", requirePermission("can_manage_users"), async (req, res, next) => {
   try {
-    const { full_name, role_id, is_active, password, assigned_area_id } = req.body;
+    const { full_name, role_id, is_active, password, assigned_areas } = req.body;
     const db = getDb();
     if (password && password.length >= 6) await db.prepare("UPDATE users SET password_hash=$1 WHERE id=$2").run(bcrypt.hashSync(password,10), parseInt(req.params.id));
-    await db.prepare("UPDATE users SET full_name=$1,role_id=$2,is_active=$3,assigned_area_id=$4 WHERE id=$5").run(full_name||"", parseInt(role_id), is_active?1:0, assigned_area_id||null, parseInt(req.params.id));
+    await db.prepare("UPDATE users SET full_name=$1,role_id=$2,is_active=$3,assigned_areas=$4 WHERE id=$5").run(full_name||"", parseInt(role_id), is_active?1:0, assigned_areas||null, parseInt(req.params.id));
     res.json({ message: "Updated" });
   } catch(e) { next(e); }
 });

@@ -129,7 +129,6 @@ export default function AdminPage({ currentMonth, months, onMonthChange }) {
             </thead>
             <tbody>
               {users.map(u => {
-                const assignedArea = areas.find(a => a.id === u.assigned_area_id);
                 return (
                   <tr key={u.id} style={{ borderBottom:"1px solid #f8fafc" }}>
                     <td style={{ ...td, fontWeight:700, color:"#1a2744" }}>{u.username}</td>
@@ -140,7 +139,12 @@ export default function AdminPage({ currentMonth, months, onMonthChange }) {
                       </span>
                     </td>
                     <td style={{ ...td, fontSize:12, color:"#374151" }}>
-                      {assignedArea ? `${assignedArea.area_number}. ${assignedArea.area_name.substring(0,28)}` : "—"}
+                      {u.assigned_areas
+                        ? u.assigned_areas.split(",").filter(Boolean).map(id => {
+                            const a = areas.find(x => x.id === parseInt(id));
+                            return a ? `${a.area_number}.${a.area_name.substring(0,15)}` : "";
+                          }).filter(Boolean).join(", ")
+                        : "—"}
                     </td>
                     <td style={td}>
                       <span style={{ color: u.is_active ? "#16a34a" : "#dc2626", fontWeight:600, fontSize:13 }}>
@@ -312,17 +316,33 @@ export default function AdminPage({ currentMonth, months, onMonthChange }) {
               </select>
             </div>
             <div style={{ gridColumn:"1/-1" }}>
-              <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#374151", marginBottom:6 }}>
-                Assigned Area <span style={{ color:"#94a3b8", fontWeight:400 }}>(for Raters — based on In-Charge name)</span>
+              <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#374151", marginBottom:8 }}>
+                Assigned Areas <span style={{ color:"#94a3b8", fontWeight:400 }}>(select multiple for Raters)</span>
               </label>
-              <select style={inp} value={form.assigned_area_id||""} onChange={e=>setF("assigned_area_id", e.target.value ? parseInt(e.target.value) : null)}>
-                <option value="">No specific area assigned</option>
-                {areas.map(a=>(
-                  <option key={a.id} value={a.id}>
-                    {a.area_number}. {a.area_name}{a.in_charge ? ` — ${a.in_charge}` : ""}
-                  </option>
-                ))}
-              </select>
+              <div style={{ border:"1.5px solid #e2e8f0", borderRadius:8, maxHeight:200, overflowY:"auto", background:"#fff" }}>
+                {areas.map(a => {
+                  const currentAreas = (form.assigned_areas||"").split(",").filter(Boolean).map(Number);
+                  const checked = currentAreas.includes(a.id);
+                  return (
+                    <label key={a.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 14px", cursor:"pointer", borderBottom:"1px solid #f1f5f9", background:checked?"#eef4ff":"transparent" }}>
+                      <input type="checkbox" checked={checked} onChange={e => {
+                        const cur = (form.assigned_areas||"").split(",").filter(Boolean).map(Number);
+                        const next = e.target.checked ? [...cur, a.id] : cur.filter(x => x !== a.id);
+                        setF("assigned_areas", next.join(","));
+                      }} />
+                      <span style={{ fontSize:13, color:checked?"#1a3a6b":"#374151", fontWeight:checked?600:400 }}>
+                        {a.area_number}. {a.area_name}{a.in_charge ? ` — ${a.in_charge}` : ""}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {form.assigned_areas && (
+                <p style={{ margin:"6px 0 0", fontSize:12, color:"#6b7a99" }}>
+                  {(form.assigned_areas).split(",").filter(Boolean).length} area(s) selected
+                  <button onClick={()=>setF("assigned_areas","")} style={{ marginLeft:8, background:"none", border:"none", color:"#dc2626", fontSize:11, cursor:"pointer" }}>Clear all</button>
+                </p>
+              )}
             </div>
             {form.id && (
               <div>
