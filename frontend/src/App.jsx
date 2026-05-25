@@ -7,45 +7,50 @@ import RatingsPage from "./pages/RatingsPage";
 import AdminPage from "./pages/AdminPage";
 import api from "./utils/api";
 
-// ─── RATER LAYOUT (rating only, no dashboard) ────────────────────────────────
+const isMobile = () => window.innerWidth < 768;
+
+// ─── RATER LAYOUT ─────────────────────────────────────────────────────────────
 function RaterLayout({ user, logout }) {
   const [currentMonth, setCurrentMonth] = useState(null);
-  useEffect(() => { api.get("/months/current").then(r => setCurrentMonth(r.data)).catch(() => {}); }, []);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    api.get("/months/current").then(r => setCurrentMonth(r.data)).catch(() => {});
+  }, []);
 
   return (
     <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
-      <div style={{ background:"#0f766e", padding:"0 28px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+      {/* Top bar */}
+      <div style={{ background:"#0f766e", padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ width:32, height:32, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>⚙</div>
           <div>
-            <span style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</span>
-            <span style={{ color:"rgba(255,255,255,0.6)", fontSize:12, marginLeft:8 }}>Housekeeping Ratings</span>
+            <div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div>
+            {currentMonth && <div style={{ color:"rgba(255,255,255,0.7)", fontSize:11 }}>{currentMonth.month_label}</div>}
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-          {currentMonth && (
-            <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.15)", padding:"4px 12px", borderRadius:20 }}>
-              📅 {currentMonth.month_label}{currentMonth.is_locked && " 🔒"}
-            </span>
-          )}
-          <span style={{ color:"rgba(255,255,255,0.9)", fontSize:13 }}>⭐ {user.full_name || user.username}</span>
-          <button onClick={logout} style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, padding:"5px 12px", color:"#fff", fontSize:12, cursor:"pointer" }}>Sign Out</button>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ color:"rgba(255,255,255,0.9)", fontSize:13 }}>⭐ {user.full_name?.split(" ")[0] || user.username}</span>
+          <button onClick={logout} style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, padding:"5px 10px", color:"#fff", fontSize:12, cursor:"pointer" }}>Out</button>
         </div>
       </div>
-      <div style={{ background:"#f0fdfa", borderBottom:"1px solid #99f6e4", padding:"10px 28px" }}>
-        <span style={{ fontSize:13, color:"#0f766e" }}>⭐ <strong>Rater Access</strong> — Enter grades and save. Ratings lock after submission. Contact admin to make changes.</span>
+      <div style={{ background:"#f0fdfa", borderBottom:"1px solid #99f6e4", padding:"8px 16px" }}>
+        <span style={{ fontSize:12, color:"#0f766e" }}>⭐ Rater — Enter grades and submit. Locked after save.</span>
       </div>
-      <div style={{ padding:28 }}><RatingsPage currentMonth={currentMonth} initialAreaId={null} /></div>
+      <div style={{ padding:"16px 12px" }}>
+        <RatingsPage currentMonth={currentMonth} initialAreaId={null} />
+      </div>
     </div>
   );
 }
 
-// ─── VIEWER LAYOUT (dashboard + ratings read-only, NO admin) ─────────────────
+// ─── VIEWER LAYOUT ────────────────────────────────────────────────────────────
 function ViewerLayout({ user, logout }) {
   const [page, setPage] = useState("dashboard");
   const [currentMonth, setCurrentMonth] = useState(null);
   const [months, setMonths] = useState([]);
   const [selectedMonthId, setSelectedMonthId] = useState(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     api.get("/months").then(r => {
@@ -59,87 +64,73 @@ function ViewerLayout({ user, logout }) {
     if (selectedMonthId && months.length) setCurrentMonth(months.find(m => m.id === selectedMonthId) || null);
   }, [selectedMonthId, months]);
 
-  const NAV = [
-    { id:"dashboard", label:"Dashboard", icon:"▦" },
-    { id:"ratings", label:"View Ratings", icon:"★" },
-  ];
+  const NAV = [{ id:"dashboard", label:"Dashboard", icon:"▦" }, { id:"ratings", label:"View Ratings", icon:"★" }];
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
-      {/* Sidebar */}
-      <div style={{ width:220, background:"#1e4d8c", display:"flex", flexDirection:"column", flexShrink:0 }}>
-        <div style={{ padding:"24px 20px 20px", borderBottom:"1px solid #2a5fa8" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-            <div style={{ width:36, height:36, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>⚙</div>
-            <div><div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div><div style={{ color:"#93b8e8", fontSize:10, letterSpacing:0.8 }}>VIEWER PORTAL</div></div>
-          </div>
-          <div style={{ background:"#163a6e", borderRadius:8, padding:"6px 10px" }}>
-            <p style={{ margin:0, fontSize:10, color:"#f59e0b", fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>👁 View Only</p>
-            <p style={{ margin:"2px 0 0", fontSize:11, color:"#93b8e8" }}>Read-only access</p>
-          </div>
+    <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      {/* Mobile top bar */}
+      <div style={{ background:"#1e4d8c", padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={() => setNavOpen(o => !o)} style={{ background:"none", border:"none", color:"#fff", fontSize:20, cursor:"pointer", padding:4 }}>☰</button>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</div>
         </div>
-
-        {/* Month selector */}
-        <div style={{ padding:"16px 16px 0" }}>
-          <label style={{ display:"block", fontSize:10, color:"#93b8e8", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Assessment Month</label>
-          <select value={selectedMonthId || ""} onChange={e => setSelectedMonthId(parseInt(e.target.value))}
-            style={{ width:"100%", background:"#163a6e", border:"1px solid #2a5fa8", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
-            {months.map(m => <option key={m.id} value={m.id}>{m.month_label}{m.is_current?" ★":""}{m.is_locked?" 🔒":""}</option>)}
-          </select>
-        </div>
-
-        <nav style={{ padding:"16px 10px", flex:1 }}>
-          {NAV.map(n => (
-            <button key={n.id} onClick={() => setPage(n.id)} style={{
-              width:"100%", display:"flex", alignItems:"center", gap:12,
-              padding:"10px 12px", borderRadius:8, border:"none", cursor:"pointer", marginBottom:4,
-              background: page === n.id ? "#fff" : "transparent",
-              color: page === n.id ? "#1e4d8c" : "#93b8e8",
-              fontWeight: page === n.id ? 700 : 400, fontSize:14,
-            }}>
-              <span style={{ fontSize:16 }}>{n.icon}</span>
-              <span>{n.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div style={{ padding:"16px 12px", borderTop:"1px solid #2a5fa8" }}>
-          <div style={{ marginBottom:8 }}>
-            <div style={{ color:"#fff", fontSize:13, fontWeight:600 }}>{user.full_name || user.username}</div>
-            <div style={{ color:"#93b8e8", fontSize:11 }}>{user.role_name}</div>
-          </div>
-          <button onClick={logout} style={{ width:"100%", background:"#163a6e", border:"1px solid #2a5fa8", borderRadius:6, padding:"7px", color:"#93b8e8", fontSize:12, cursor:"pointer" }}>Sign Out</button>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>👁 {user.full_name?.split(" ")[0] || user.username}</span>
+          <button onClick={logout} style={{ background:"rgba(255,255,255,0.15)", border:"none", borderRadius:6, padding:"5px 10px", color:"#fff", fontSize:12, cursor:"pointer" }}>Out</button>
         </div>
       </div>
 
-      {/* Main */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 28px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-          <div>
-            <h1 style={{ margin:0, fontSize:17, fontWeight:700, color:"#1a2744" }}>{NAV.find(n=>n.id===page)?.label}</h1>
-            {currentMonth && <p style={{ margin:0, fontSize:12, color:"#6b7a99" }}>{currentMonth.month_label}{currentMonth.is_locked && <span style={{ marginLeft:8, color:"#f59e0b", fontWeight:600 }}>🔒 Locked</span>}</p>}
-          </div>
-          <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:6, padding:"4px 12px", fontSize:12, color:"#0369a1", fontWeight:600 }}>
-            👁 View Only — No editing allowed
+      {/* Mobile nav drawer */}
+      {navOpen && (
+        <div style={{ position:"fixed", inset:0, zIndex:200 }}>
+          <div onClick={() => setNavOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.5)" }} />
+          <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:"#1e4d8c", padding:"20px 0", zIndex:201 }}>
+            <div style={{ padding:"0 20px 20px", borderBottom:"1px solid #2a5fa8" }}>
+              <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>SAI WARDHA</div>
+              <div style={{ color:"#93b8e8", fontSize:11, marginTop:2 }}>VIEWER PORTAL</div>
+              <select value={selectedMonthId||""} onChange={e=>{setSelectedMonthId(parseInt(e.target.value));setNavOpen(false);}}
+                style={{ width:"100%", marginTop:12, background:"#163a6e", border:"1px solid #2a5fa8", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
+                {months.map(m=><option key={m.id} value={m.id}>{m.month_label}{m.is_current?" ★":""}</option>)}
+              </select>
+            </div>
+            <nav style={{ padding:"12px 10px" }}>
+              {NAV.map(n=>(
+                <button key={n.id} onClick={()=>{setPage(n.id);setNavOpen(false);}} style={{
+                  width:"100%", display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderRadius:8, border:"none", cursor:"pointer", marginBottom:4,
+                  background: page===n.id?"#fff":"transparent", color: page===n.id?"#1e4d8c":"#93b8e8", fontWeight: page===n.id?700:400, fontSize:15,
+                }}>
+                  <span>{n.icon}</span><span>{n.label}</span>
+                </button>
+              ))}
+            </nav>
+            <div style={{ position:"absolute", bottom:20, left:0, right:0, padding:"0 16px" }}>
+              <button onClick={logout} style={{ width:"100%", background:"#163a6e", border:"1px solid #2a5fa8", borderRadius:8, padding:"10px", color:"#93b8e8", fontSize:14, cursor:"pointer" }}>Sign Out</button>
+            </div>
           </div>
         </div>
-        <div style={{ flex:1, overflow:"auto", padding:28 }}>
-          {page==="dashboard" && <DashboardPage currentMonth={currentMonth} months={months} onNavigateRatings={() => setPage("ratings")} />}
-          {page==="ratings" && <RatingsPage currentMonth={currentMonth} initialAreaId={null} />}
+      )}
+
+      <div style={{ padding:"16px 12px" }}>
+        <div style={{ marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <h2 style={{ margin:0, fontSize:16, fontWeight:700, color:"#1a2744" }}>{NAV.find(n=>n.id===page)?.label}</h2>
+          {currentMonth && <span style={{ fontSize:11, color:"#6b7a99" }}>{currentMonth.month_label}</span>}
         </div>
+        <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:6, padding:"6px 12px", marginBottom:16, fontSize:12, color:"#0369a1" }}>👁 View Only</div>
+        {page==="dashboard" && <DashboardPage currentMonth={currentMonth} months={months} onNavigateRatings={()=>setPage("ratings")} />}
+        {page==="ratings" && <RatingsPage currentMonth={currentMonth} initialAreaId={null} />}
       </div>
     </div>
   );
 }
 
-// ─── ADMIN LAYOUT (full access) ───────────────────────────────────────────────
+// ─── ADMIN LAYOUT ─────────────────────────────────────────────────────────────
 function AdminLayout({ user, logout, can }) {
   const [page, setPage] = useState("dashboard");
   const [ratingAreaId, setRatingAreaId] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(null);
   const [months, setMonths] = useState([]);
   const [selectedMonthId, setSelectedMonthId] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [navOpen, setNavOpen] = useState(false);
 
   function loadMonths() {
     api.get("/months").then(r => {
@@ -150,7 +141,7 @@ function AdminLayout({ user, logout, can }) {
   }
   useEffect(() => { loadMonths(); }, []);
   useEffect(() => {
-    if (selectedMonthId && months.length) setCurrentMonth(months.find(m => m.id === selectedMonthId) || null);
+    if (selectedMonthId && months.length) setCurrentMonth(months.find(m=>m.id===selectedMonthId)||null);
   }, [selectedMonthId, months]);
 
   const NAV = [
@@ -159,92 +150,101 @@ function AdminLayout({ user, logout, can }) {
     { id:"admin", label:"Admin", icon:"⚙" },
   ];
 
-  return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
-      <div style={{ width: sidebarOpen?240:64, background:"#1a3a6b", display:"flex", flexDirection:"column", transition:"width 0.2s", flexShrink:0, position:"relative" }}>
-        <div style={{ padding: sidebarOpen?"24px 20px 20px":"24px 12px 20px", borderBottom:"1px solid #2a5490" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:36, height:36, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>⚙</div>
-            {sidebarOpen && <div><div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div><div style={{ color:"#93b4d4", fontSize:10, letterSpacing:0.8 }}>ADMIN PORTAL</div></div>}
-          </div>
+  const NavContent = () => (
+    <>
+      <div style={{ padding:"16px 20px 16px", borderBottom:"1px solid #2a5490" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+          <div style={{ width:36, height:36, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>⚙</div>
+          <div><div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div><div style={{ color:"#93b4d4", fontSize:10, letterSpacing:0.8 }}>ADMIN PORTAL</div></div>
         </div>
-        {sidebarOpen && (
-          <div style={{ padding:"16px 16px 0" }}>
-            <label style={{ display:"block", fontSize:10, color:"#93b4d4", textTransform:"uppercase", letterSpacing:0.8, marginBottom:6 }}>Assessment Month</label>
-            <select value={selectedMonthId||""} onChange={e=>setSelectedMonthId(parseInt(e.target.value))}
-              style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
-              {months.map(m=><option key={m.id} value={m.id}>{m.month_label}{m.is_current?" ★":""}{m.is_locked?" 🔒":""}</option>)}
-            </select>
+        <select value={selectedMonthId||""} onChange={e=>{setSelectedMonthId(parseInt(e.target.value));setNavOpen(false);}}
+          style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
+          {months.map(m=><option key={m.id} value={m.id}>{m.month_label}{m.is_current?" ★":""}{m.is_locked?" 🔒":""}</option>)}
+        </select>
+      </div>
+      <nav style={{ padding:"12px 10px", flex:1 }}>
+        {NAV.map(n=>(
+          <button key={n.id} onClick={()=>{setPage(n.id);setNavOpen(false);}} style={{
+            width:"100%", display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderRadius:8, border:"none", cursor:"pointer", marginBottom:4,
+            background: page===n.id?"#fff":"transparent", color: page===n.id?"#1a3a6b":"#93b4d4", fontWeight: page===n.id?700:400, fontSize:15,
+          }}>
+            <span>{n.icon}</span><span>{n.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div style={{ padding:"16px 12px", borderTop:"1px solid #2a5490" }}>
+        <div style={{ padding:"8px 12px", background:"#0f2a55", borderRadius:8, marginBottom:8 }}>
+          <p style={{ margin:0, fontSize:11, color:"#f59e0b", fontWeight:700, textTransform:"uppercase" }}>🔑 Admin</p>
+          <p style={{ margin:"2px 0 0", fontSize:12, color:"#93b4d4" }}>{user.full_name||user.username}</p>
+        </div>
+        <button onClick={logout} style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"10px", color:"#93b4d4", fontSize:13, cursor:"pointer" }}>Sign Out</button>
+      </div>
+    </>
+  );
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      {/* Mobile top bar */}
+      <div style={{ background:"#1a3a6b", padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <button onClick={()=>setNavOpen(o=>!o)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>☰</button>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          {currentMonth && <span style={{ fontSize:11, color:"rgba(255,255,255,0.7)", display:"none" }} className="desktop-only">{currentMonth.month_label}</span>}
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>🔑</span>
+        </div>
+      </div>
+
+      {/* Desktop sidebar (hidden on mobile via width check done in render) */}
+      <div style={{ display:"flex", minHeight:"calc(100vh - 56px)" }}>
+        {/* Sidebar - desktop only */}
+        <div style={{ width:240, background:"#1a3a6b", display:"flex", flexDirection:"column", flexShrink:0, "@media(max-width:768px)":{display:"none"} }}>
+          <NavContent />
+        </div>
+
+        {/* Mobile nav drawer */}
+        {navOpen && (
+          <div style={{ position:"fixed", inset:0, zIndex:200 }}>
+            <div onClick={()=>setNavOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.5)" }} />
+            <div style={{ position:"absolute", left:0, top:0, bottom:0, width:280, background:"#1a3a6b", display:"flex", flexDirection:"column", zIndex:201 }}>
+              <NavContent />
+            </div>
           </div>
         )}
-        <nav style={{ padding:"16px 10px", flex:1 }}>
-          {NAV.map(n=>(
-            <button key={n.id} onClick={()=>setPage(n.id)} style={{
-              width:"100%", display:"flex", alignItems:"center", gap:12,
-              padding: sidebarOpen?"10px 12px":"10px", borderRadius:8, border:"none", cursor:"pointer", marginBottom:4,
-              background: page===n.id?"#fff":"transparent",
-              color: page===n.id?"#1a3a6b":"#93b4d4",
-              fontWeight: page===n.id?700:400, fontSize:14,
-              justifyContent: sidebarOpen?"flex-start":"center"
-            }}>
-              <span style={{ fontSize:16, flexShrink:0 }}>{n.icon}</span>
-              {sidebarOpen && <span>{n.label}</span>}
-            </button>
-          ))}
-        </nav>
-        <div style={{ padding:"16px 12px", borderTop:"1px solid #2a5490" }}>
-          {sidebarOpen && (
-            <div style={{ padding:"8px 12px", background:"#0f2a55", borderRadius:8, marginBottom:8 }}>
-              <p style={{ margin:0, fontSize:11, color:"#f59e0b", fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>🔑 Administrator</p>
-              <p style={{ margin:"2px 0 0", fontSize:12, color:"#93b4d4" }}>{user.full_name||user.username}</p>
+
+        {/* Main content */}
+        <div style={{ flex:1, overflow:"auto" }}>
+          <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <h1 style={{ margin:0, fontSize:16, fontWeight:700, color:"#1a2744" }}>{NAV.find(n=>n.id===page)?.label}</h1>
+              {currentMonth && <p style={{ margin:0, fontSize:11, color:"#6b7a99" }}>{currentMonth.month_label}{currentMonth.is_locked&&<span style={{ marginLeft:6, color:"#f59e0b" }}>🔒</span>}</p>}
             </div>
-          )}
-          <button onClick={logout} style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"7px", color:"#93b4d4", fontSize:12, cursor:"pointer" }}>
-            {sidebarOpen?"Sign Out":"⏏"}
-          </button>
-        </div>
-        <button onClick={()=>setSidebarOpen(o=>!o)} style={{ position:"absolute", top:20, right:-12, width:24, height:24, background:"#1a3a6b", border:"2px solid #2a5490", borderRadius:"50%", cursor:"pointer", color:"#93b4d4", fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
-          {sidebarOpen?"◀":"▶"}
-        </button>
-      </div>
-      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0 28px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-          <div>
-            <h1 style={{ margin:0, fontSize:17, fontWeight:700, color:"#1a2744" }}>{NAV.find(n=>n.id===page)?.label}</h1>
-            {currentMonth && <p style={{ margin:0, fontSize:12, color:"#6b7a99" }}>{currentMonth.month_label}{currentMonth.is_locked&&<span style={{ marginLeft:8, color:"#f59e0b", fontWeight:600 }}>🔒 Locked</span>}</p>}
           </div>
-        </div>
-        <div style={{ flex:1, overflow:"auto", padding:28 }}>
-          {page==="dashboard" && <DashboardPage currentMonth={currentMonth} months={months} onNavigateRatings={id=>{setRatingAreaId(id);setPage("ratings");}} />}
-          {page==="ratings" && <RatingsPage currentMonth={currentMonth} initialAreaId={ratingAreaId} />}
-          {page==="admin" && <AdminPage currentMonth={currentMonth} months={months} onMonthChange={loadMonths} />}
+          <div style={{ padding:"16px 12px" }}>
+            {page==="dashboard" && <DashboardPage currentMonth={currentMonth} months={months} onNavigateRatings={id=>{setRatingAreaId(id);setPage("ratings");}} />}
+            {page==="ratings" && <RatingsPage currentMonth={currentMonth} initialAreaId={ratingAreaId} />}
+            {page==="admin" && <AdminPage currentMonth={currentMonth} months={months} onMonthChange={loadMonths} />}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── ROOT: route by role ──────────────────────────────────────────────────────
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
 function Layout() {
   const { user, logout, can } = useAuth();
   if (!user) return <LoginPage />;
-
-  // Admin — full access
-  if (user.is_admin || can("can_manage_users") || can("can_manage_settings")) {
-    return <AdminLayout user={user} logout={logout} can={can} />;
-  }
-  // Viewer — dashboard + read-only ratings, NO admin
-  if (can("can_view_penalties") || can("can_export")) {
-    return <ViewerLayout user={user} logout={logout} />;
-  }
-  // Rater — ratings only
+  if (user.is_admin || can("can_manage_users") || can("can_manage_settings")) return <AdminLayout user={user} logout={logout} can={can} />;
+  if (can("can_view_penalties") || can("can_export")) return <ViewerLayout user={user} logout={logout} />;
   return <RaterLayout user={user} logout={logout} />;
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <Toaster position="top-right" toastOptions={{ style:{ background:"#1a3a6b", color:"#fff", borderRadius:8 } }} />
+      <Toaster position="top-center" toastOptions={{ style:{ background:"#1a3a6b", color:"#fff", borderRadius:8, fontSize:13 } }} />
       <Layout />
     </AuthProvider>
   );
