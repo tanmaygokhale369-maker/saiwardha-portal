@@ -184,6 +184,12 @@ function AdminLayout({ user, logout, can }) {
 
   return (
     <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      {/* CSS for responsive */}
+      <style>{`
+        @media (max-width: 768px) { .desktop-sidebar { display: none !important; } }
+        @media (min-width: 769px) { .mobile-topbar { display: none !important; } .hamburger-btn { display: none !important; } }
+      `}</style>
+
       {/* Mobile top bar */}
       <div style={{ background:"#1a3a6b", padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -191,15 +197,13 @@ function AdminLayout({ user, logout, can }) {
           <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          {currentMonth && <span style={{ fontSize:11, color:"rgba(255,255,255,0.7)", display:"none" }} className="desktop-only">{currentMonth.month_label}</span>}
-          <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>🔑</span>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>🔑 {user.full_name?.split(" ")[0]||user.username}</span>
         </div>
       </div>
 
-      {/* Desktop sidebar (hidden on mobile via width check done in render) */}
       <div style={{ display:"flex", minHeight:"calc(100vh - 56px)" }}>
         {/* Sidebar - desktop only */}
-        <div style={{ width:240, background:"#1a3a6b", display:"flex", flexDirection:"column", flexShrink:0, "@media(max-width:768px)":{display:"none"} }}>
+        <div className="desktop-sidebar" style={{ width:240, background:"#1a3a6b", display:"flex", flexDirection:"column", flexShrink:0 }}>
           <NavContent />
         </div>
 
