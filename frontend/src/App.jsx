@@ -12,11 +12,20 @@ const isMobile = () => window.innerWidth < 768;
 // ─── RATER LAYOUT ─────────────────────────────────────────────────────────────
 function RaterLayout({ user, logout }) {
   const [currentMonth, setCurrentMonth] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [months, setMonths] = useState([]);
+  const [selectedMonthId, setSelectedMonthId] = useState(null);
 
   useEffect(() => {
-    api.get("/months/current").then(r => setCurrentMonth(r.data)).catch(() => {});
+    api.get("/months").then(r => {
+      setMonths(r.data);
+      const cur = r.data.find(m => m.is_current);
+      if (cur) { setSelectedMonthId(cur.id); setCurrentMonth(cur); }
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (selectedMonthId && months.length) setCurrentMonth(months.find(m => m.id === selectedMonthId) || null);
+  }, [selectedMonthId, months]);
 
   return (
     <div style={{ minHeight:"100vh", background:"#f0f4f8", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
@@ -30,7 +39,10 @@ function RaterLayout({ user, logout }) {
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <span style={{ color:"rgba(255,255,255,0.9)", fontSize:13 }}>⭐ {user.full_name?.split(" ")[0] || user.username}</span>
+          <select value={selectedMonthId||""} onChange={e=>setSelectedMonthId(parseInt(e.target.value))}
+            style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, padding:"5px 8px", color:"#fff", fontSize:12, outline:"none", maxWidth:130 }}>
+            {months.map(m=><option key={m.id} value={m.id} style={{ background:"#0f766e", color:"#fff" }}>{m.month_label}{m.is_locked?" 🔒":""}</option>)}
+          </select>
           <button onClick={logout} style={{ background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, padding:"5px 10px", color:"#fff", fontSize:12, cursor:"pointer" }}>Out</button>
         </div>
       </div>
