@@ -48,8 +48,16 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
 
   useEffect(() => {
     api.get("/areas").then(r => {
-      setAreas(r.data);
-      if (!selectedAreaId && r.data.length) setSelectedAreaId(r.data[0].id);
+      let allAreas = r.data;
+      // If rater has assigned areas, filter to only those
+      if (!isAdmin && user?.assigned_areas) {
+        const assignedIds = user.assigned_areas.split(",").filter(Boolean).map(Number);
+        if (assignedIds.length > 0) {
+          allAreas = allAreas.filter(a => assignedIds.includes(a.id));
+        }
+      }
+      setAreas(allAreas);
+      if (!selectedAreaId && allAreas.length) setSelectedAreaId(allAreas[0].id);
     });
   }, []);
 

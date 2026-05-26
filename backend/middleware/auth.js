@@ -13,7 +13,8 @@ async function authenticate(req, res, next) {
     const decoded = jwt.verify(header.slice(7), JWT_SECRET);
     const db = getDb();
     const user = await db.prepare(`
-      SELECT u.*, r.can_rate, r.can_view_penalties, r.can_add_remarks,
+      SELECT u.id, u.username, u.full_name, u.role_id, u.is_active, u.assigned_areas,
+             r.can_rate, r.can_view_penalties, r.can_add_remarks,
              r.can_export, r.can_manage_users, r.can_manage_settings,
              r.is_admin, r.name as role_name
       FROM users u LEFT JOIN roles r ON u.role_id = r.id

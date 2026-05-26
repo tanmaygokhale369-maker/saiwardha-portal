@@ -62,10 +62,18 @@ router.post("/bulk", requirePermission("can_rate"), async (req, res, next) => {
     if (!month) return res.status(404).json({ error: "Month not found" });
     if (month.is_locked && !req.user.is_admin) return res.status(403).json({ error: "Month is locked" });
 
+    // Validate grades max 5
     for (const r of ratings) {
       if (r.grade !== null && r.grade !== undefined) {
         if (r.grade > 5) return res.status(400).json({ error: `Grade cannot exceed 5` });
         if (r.grade < 0) return res.status(400).json({ error: `Grade cannot be negative` });
+      }
+      // Check rater is only saving their assigned areas
+      if (!req.user.is_admin && req.user.assigned_areas) {
+        const assignedIds = req.user.assigned_areas.split(",").filter(Boolean).map(Number);
+        if (assignedIds.length > 0 && !assignedIds.includes(r.area_id)) {
+          return res.status(403).json({ error: `Not authorized to rate area ${r.area_id}` });
+        }
       }
     }
 
