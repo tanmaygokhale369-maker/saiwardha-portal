@@ -9,10 +9,19 @@ router.get("/month/:monthId", async (req, res, next) => {
   catch(e) { next(e); }
 });
 
-router.post("/", requirePermission("can_add_remarks"), async (req, res, next) => {
+router.post("/", async (req, res, next) => {
   try {
     const { month_id, area_id, week_number, remark_type, remark_text } = req.body;
     if (!month_id || !area_id || !remark_type) return res.status(400).json({ error: "Required fields missing" });
+
+    // General remark: raters (can_add_remarks)
+    // OEG remark: viewers/admin (can_view_penalties or is_admin)
+    if (remark_type === "general" && !req.user.is_admin && !req.user.can_add_remarks) {
+      return res.status(403).json({ error: "No permission to add general remarks" });
+    }
+    if (remark_type === "oeg" && !req.user.is_admin && !req.user.can_view_penalties) {
+      return res.status(403).json({ error: "OEG remarks are for Viewer/Admin only" });
+    }
     const db = getDb();
     const wn = week_number || null;
     const existing = wn

@@ -114,10 +114,10 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
       if(!ratings.length){toast.error("No grades to save");setSaving(false);return;}
       const result=await api.post("/ratings/bulk",{month_id:currentMonth.id,ratings});
       if(can("can_add_remarks")){
-        await Promise.all([
-          api.post("/remarks",{month_id:currentMonth.id,area_id:selectedAreaId,remark_type:"oeg",remark_text:remarks[`${selectedAreaId}_oeg`]||""}),
-          api.post("/remarks",{month_id:currentMonth.id,area_id:selectedAreaId,remark_type:"general",remark_text:remarks[`${selectedAreaId}_general`]||""})
-        ]);
+        await api.post("/remarks",{month_id:currentMonth.id,area_id:selectedAreaId,remark_type:"general",remark_text:remarks[`${selectedAreaId}_general`]||""});
+      }
+      if(can("can_view_penalties") || isAdmin){
+        await api.post("/remarks",{month_id:currentMonth.id,area_id:selectedAreaId,remark_type:"oeg",remark_text:remarks[`${selectedAreaId}_oeg`]||""});
       }
       const r=await api.get(`/ratings/month/${currentMonth.id}/summary`);
       const rMap={},lMap={};
@@ -233,18 +233,37 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
           </div>
 
           {/* Remarks */}
-          {can("can_add_remarks") && (
+          {(can("can_add_remarks") || can("can_view_penalties") || user?.is_admin) && (
             <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, padding:"14px" }}>
               <div style={{ fontSize:11, fontWeight:700, color:"#6b7a99", textTransform:"uppercase", letterSpacing:0.5, marginBottom:10 }}>Remarks</div>
-              {[{key:"oeg",label:"OEG Remark"},{key:"general",label:"General Remark"}].map(t=>(
-                <div key={t.key} style={{ marginBottom:10 }}>
-                  <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>{t.label}</label>
-                  <textarea value={remarks[`${selectedAreaId}_${t.key}`]||""} onChange={e=>setRemarks(p=>({...p,[`${selectedAreaId}_${t.key}`]:e.target.value}))}
-                    disabled={currentMonth?.is_locked} rows={2} placeholder={`Enter ${t.label.toLowerCase()}…`}
+
+              {/* General Remark - Rater can enter */}
+              {can("can_add_remarks") && (
+                <div style={{ marginBottom:10 }}>
+                  <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>
+                    General Remark <span style={{ color:"#94a3b8", fontWeight:400 }}>(Rater)</span>
+                  </label>
+                  <textarea value={remarks[`${selectedAreaId}_general`]||""}
+                    onChange={e=>setRemarks(p=>({...p,[`${selectedAreaId}_general`]:e.target.value}))}
+                    disabled={currentMonth?.is_locked} rows={2} placeholder="Enter general remark…"
                     style={{ width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8, padding:"8px 10px", fontSize:13, color:"#374151", resize:"none", boxSizing:"border-box", outline:"none", fontFamily:"inherit" }}
                   />
                 </div>
-              ))}
+              )}
+
+              {/* OEG Remark - Viewer/Admin only */}
+              {(can("can_view_penalties") || user?.is_admin) && (
+                <div style={{ marginBottom:10 }}>
+                  <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#374151", marginBottom:4 }}>
+                    OEG Remark <span style={{ color:"#94a3b8", fontWeight:400 }}>(Viewer/Admin)</span>
+                  </label>
+                  <textarea value={remarks[`${selectedAreaId}_oeg`]||""}
+                    onChange={e=>setRemarks(p=>({...p,[`${selectedAreaId}_oeg`]:e.target.value}))}
+                    disabled={currentMonth?.is_locked} rows={2} placeholder="Enter OEG remark…"
+                    style={{ width:"100%", border:"1.5px solid #e2e8f0", borderRadius:8, padding:"8px 10px", fontSize:13, color:"#374151", resize:"none", boxSizing:"border-box", outline:"none", fontFamily:"inherit" }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
