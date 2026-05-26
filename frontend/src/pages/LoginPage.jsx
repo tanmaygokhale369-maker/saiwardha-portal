@@ -27,37 +27,46 @@ export default function LoginPage() {
   };
 
   if (mode==="select") return (
-    <div style={{ minHeight:"100vh", background:"#f0f4f8", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"'Segoe UI',system-ui,sans-serif", padding:20 }}>
-      <div style={{ textAlign:"center", marginBottom:32 }}>
-        <div style={{ width:56, height:56, background:"#f59e0b", borderRadius:14, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:28, marginBottom:12 }}>⚙</div>
-        <h1 style={{ margin:"0 0 4px", fontSize:22, fontWeight:800, color:"#1a2744" }}>SAI WARDHA</h1>
-        <p style={{ margin:0, fontSize:12, color:"#6b7a99", textTransform:"uppercase", letterSpacing:1 }}>Power Generation Pvt Ltd · KD3 Portal</p>
+    <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#f0f4ff 0%,#e8f4f0 50%,#fef9f0 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"'Segoe UI',system-ui,sans-serif", padding:20 }}>
+      <div style={{ textAlign:"center", marginBottom:40 }}>
+        <div style={{ width:72, height:72, background:"linear-gradient(135deg, #f59e0b, #d97706)", borderRadius:20, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:36, marginBottom:20, boxShadow:"0 8px 32px rgba(245,158,11,0.35)" }}>⚙</div>
+        <h1 style={{ margin:"0 0 6px", fontSize:36, fontWeight:900, color:"#1a2744", letterSpacing:"-1px", lineHeight:1 }}>SAI WARDHA</h1>
+        <h2 style={{ margin:"0 0 4px", fontSize:17, fontWeight:700, color:"#1a3a6b", letterSpacing:"0.5px" }}>Power Generation Pvt Ltd</h2>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:8, marginTop:8, background:"linear-gradient(135deg,#1a3a6b,#2563eb)", borderRadius:20, padding:"6px 18px" }}>
+          <span style={{ color:"#f59e0b", fontSize:14 }}>⭐</span>
+          <span style={{ color:"#fff", fontSize:13, fontWeight:700, letterSpacing:"0.5px" }}>KD3 HOUSEKEEPING PORTAL</span>
+          <span style={{ color:"#f59e0b", fontSize:14 }}>⭐</span>
+        </div>
       </div>
 
-      <div style={{ display:"flex", flexDirection:"column", gap:12, width:"100%", maxWidth:340 }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:12, width:"100%", maxWidth:400 }}>
         {[
-          { mode:"admin", icon:"🔑", label:"Admin Login", desc:"Manage users, months, view all data", color:"#1a3a6b", btnColor:"#f59e0b", btnText:"#1a2744" },
-          { mode:"viewer", icon:"👁️", label:"Viewer Login", desc:"View dashboard & ratings (read only)", color:"#1e4d8c", btnColor:"#fff", btnText:"#1e4d8c" },
-          { mode:"rater", icon:"⭐", label:"Rater Login", desc:"Enter weekly housekeeping grades", color:"#0f766e", btnColor:"#fff", btnText:"#0f766e" },
+          { mode:"admin", icon:"🔑", label:"Admin Login", desc:"Manage users, months & view all data", color:"#1a3a6b", accent:"#f59e0b", grad:"linear-gradient(135deg,#1a3a6b,#1e4d8c)" },
+          { mode:"viewer", icon:"👁️", label:"Viewer Login", desc:"View dashboard & ratings (read only)", color:"#0f766e", accent:"#34d399", grad:"linear-gradient(135deg,#0f766e,#059669)" },
+          { mode:"rater", icon:"⭐", label:"Rater Login", desc:"Enter weekly housekeeping grades", color:"#7c3aed", accent:"#a78bfa", grad:"linear-gradient(135deg,#7c3aed,#6d28d9)" },
         ].map(c => (
           <button key={c.mode} onClick={()=>setMode(c.mode)} style={{
-            background:"#fff", border:`2px solid ${c.color}22`, borderRadius:14, padding:"16px 20px",
-            cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:14,
-            boxShadow:"0 2px 12px rgba(0,0,0,0.06)", transition:"all 0.15s"
+            background:"#fff", border:"none", borderRadius:16, padding:0,
+            cursor:"pointer", textAlign:"left", overflow:"hidden",
+            boxShadow:"0 4px 20px rgba(0,0,0,0.08)", transition:"all 0.2s"
           }}
-          onMouseEnter={e=>e.currentTarget.style.borderColor=c.color}
-          onMouseLeave={e=>e.currentTarget.style.borderColor=`${c.color}22`}>
-            <div style={{ width:44, height:44, background:c.color, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{c.icon}</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:"#1a2744", marginBottom:2 }}>{c.label}</div>
-              <div style={{ fontSize:12, color:"#6b7a99" }}>{c.desc}</div>
+          onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,0.15)";}}
+          onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 20px rgba(0,0,0,0.08)";}}>
+            <div style={{ display:"flex", alignItems:"center" }}>
+              <div style={{ width:72, minHeight:72, background:c.grad, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, flexShrink:0 }}>
+                {c.icon}
+              </div>
+              <div style={{ flex:1, padding:"14px 16px" }}>
+                <div style={{ fontSize:16, fontWeight:800, color:"#1a2744", marginBottom:3 }}>{c.label}</div>
+                <div style={{ fontSize:12, color:"#6b7a99" }}>{c.desc}</div>
+              </div>
+              <div style={{ paddingRight:16, color:"#cbd5e1", fontSize:20 }}>→</div>
             </div>
-            <span style={{ color:c.color, fontSize:18 }}>→</span>
           </button>
         ))}
       </div>
 
-      <p style={{ marginTop:24, fontSize:11, color:"#94a3b8" }}>Sai Wardha Housekeeping Quality Portal · KD3</p>
+      <p style={{ marginTop:28, fontSize:11, color:"#94a3b8" }}>© 2026 Sai Wardha Power Generation Pvt Ltd</p>
     </div>
   );
 
