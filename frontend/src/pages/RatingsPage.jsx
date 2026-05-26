@@ -129,6 +129,21 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
     finally{setSaving(false);}
   }
 
+  async function saveRemarks(){
+    if(!currentMonth||!selectedAreaId) return;
+    setSaving(true);
+    try {
+      if(can("can_add_remarks")){
+        await api.post("/remarks",{month_id:currentMonth.id,area_id:selectedAreaId,remark_type:"general",remark_text:remarks[`${selectedAreaId}_general`]||""});
+      }
+      if(can("can_view_penalties")||isAdmin){
+        await api.post("/remarks",{month_id:currentMonth.id,area_id:selectedAreaId,remark_type:"oeg",remark_text:remarks[`${selectedAreaId}_oeg`]||""});
+      }
+      toast.success("Remarks saved!");
+    } catch(e){toast.error(e.response?.data?.error||"Save failed");}
+    finally{setSaving(false);}
+  }
+
   if(loading) return <div style={{textAlign:"center",padding:60,color:"#6b7a99"}}>Loading…</div>;
 
   const monthlyAvg=selectedArea?getMonthlyAvg(selectedAreaId):null;
@@ -235,7 +250,14 @@ export default function RatingsPage({ currentMonth, initialAreaId }) {
           {/* Remarks */}
           {(can("can_add_remarks") || can("can_view_penalties") || user?.is_admin) && (
             <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, padding:"14px" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#6b7a99", textTransform:"uppercase", letterSpacing:0.5, marginBottom:10 }}>Remarks</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#6b7a99", textTransform:"uppercase", letterSpacing:0.5 }}>Remarks</div>
+                {!canEdit && !currentMonth?.is_locked && (
+                  <button onClick={saveRemarks} disabled={saving} style={{ padding:"6px 16px", background:"#1a3a6b", border:"none", borderRadius:8, color:"#fff", fontSize:12, fontWeight:700, cursor:saving?"not-allowed":"pointer", opacity:saving?0.7:1 }}>
+                    {saving?"Saving…":"💾 Save Remarks"}
+                  </button>
+                )}
+              </div>
 
               {/* General Remark - Rater can enter */}
               {can("can_add_remarks") && (
