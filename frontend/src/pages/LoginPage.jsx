@@ -114,12 +114,7 @@ export default function LoginPage() {
             {loading ? "Signing in…" : `Sign In as ${cfg.label} →`}
           </button>
 
-          {mode==="admin" && (
-            <div style={{ marginTop:20, padding:"12px 16px", background:"#f8fafc", borderRadius:8, border:"1px solid #e2e8f0" }}>
-              <p style={{ margin:"0 0 4px", fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase" }}>Default</p>
-              <p style={{ margin:0, fontSize:13, color:"#475569" }}>admin / admin123</p>
-            </div>
-          )}
+        
         </div>
       </div>
     </div>
