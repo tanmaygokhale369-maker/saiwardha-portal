@@ -35,7 +35,7 @@ export default function LoginPage() {
             style={{ width:140, height:140, objectFit:"contain", background:"transparent" }}
           />
         </div>
-        <h1 style={{ margin:"0 0 4px", fontSize:38, fontWeight:900, color:"#1a2744", letterSpacing:"-1px", lineHeight:1 }}>SAI WARDHA</h1>
+        <h1 style={{ margin:"0 0 4px", fontSize:38, fontWeight:900, color:"#1a2744", letterSpacing:"-1px", lineHeight:1 }}>OEG INDIA</h1>
         <h2 style={{ margin:"0 0 10px", fontSize:13, fontWeight:600, color:"#1a3a6b", letterSpacing:"0.3px" }}>Sai Wardha Power Generation Pvt. Ltd.</h2>
         <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"linear-gradient(135deg,#1a3a6b,#2563eb)", borderRadius:20, padding:"6px 20px" }}>
           <span style={{ color:"#f59e0b", fontSize:13 }}>⭐</span>
