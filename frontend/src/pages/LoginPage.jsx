@@ -29,13 +29,17 @@ export default function LoginPage() {
   if (mode==="select") return (
     <div style={{ minHeight:"100vh", background:"linear-gradient(160deg,#f0f4ff 0%,#e8f4f0 50%,#fef9f0 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"'Segoe UI',system-ui,sans-serif", padding:20 }}>
       <div style={{ textAlign:"center", marginBottom:40 }}>
-        <div style={{ width:72, height:72, background:"linear-gradient(135deg, #f59e0b, #d97706)", borderRadius:20, display:"inline-flex", alignItems:"center", justifyContent:"center", fontSize:36, marginBottom:20, boxShadow:"0 8px 32px rgba(245,158,11,0.35)" }}>⚙</div>
-        <h1 style={{ margin:"0 0 6px", fontSize:36, fontWeight:900, color:"#1a2744", letterSpacing:"-1px", lineHeight:1 }}>SAI WARDHA</h1>
-        <h2 style={{ margin:"0 0 4px", fontSize:17, fontWeight:700, color:"#1a3a6b", letterSpacing:"0.5px" }}>Power Generation Pvt Ltd</h2>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:8, marginTop:8, background:"linear-gradient(135deg,#1a3a6b,#2563eb)", borderRadius:20, padding:"6px 18px" }}>
-          <span style={{ color:"#f59e0b", fontSize:14 }}>⭐</span>
-          <span style={{ color:"#fff", fontSize:13, fontWeight:700, letterSpacing:"0.5px" }}>KD3 HOUSEKEEPING PORTAL</span>
-          <span style={{ color:"#f59e0b", fontSize:14 }}>⭐</span>
+        <div style={{ marginBottom:16 }}>
+          <img src="/oeg-logo.jpeg" alt="OEG India Logo"
+            style={{ width:120, height:120, objectFit:"contain", borderRadius:"50%", background:"#fff", padding:4, boxShadow:"0 4px 20px rgba(26,58,107,0.2)" }}
+          />
+        </div>
+        <h1 style={{ margin:"0 0 4px", fontSize:38, fontWeight:900, color:"#1a2744", letterSpacing:"-1px", lineHeight:1 }}>SAI WARDHA</h1>
+        <h2 style={{ margin:"0 0 10px", fontSize:16, fontWeight:700, color:"#1a3a6b", letterSpacing:"0.3px" }}>Power Generation Pvt Ltd</h2>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"linear-gradient(135deg,#1a3a6b,#2563eb)", borderRadius:20, padding:"6px 20px" }}>
+          <span style={{ color:"#f59e0b", fontSize:13 }}>⭐</span>
+          <span style={{ color:"#fff", fontSize:12, fontWeight:700, letterSpacing:"0.8px" }}>KD3 HOUSEKEEPING PORTAL</span>
+          <span style={{ color:"#f59e0b", fontSize:13 }}>⭐</span>
         </div>
       </div>
 
