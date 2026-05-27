@@ -34,7 +34,7 @@ function RaterLayout({ user, logout }) {
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ width:32, height:32, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>⚙</div>
           <div>
-            <div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div>
+            <div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>OEG PORTAL</div>
             {currentMonth && <div style={{ color:"rgba(255,255,255,0.7)", fontSize:11 }}>{currentMonth.month_label}</div>}
           </div>
         </div>
@@ -84,7 +84,7 @@ function ViewerLayout({ user, logout }) {
       <div style={{ background:"#1e4d8c", padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={() => setNavOpen(o => !o)} style={{ background:"none", border:"none", color:"#fff", fontSize:20, cursor:"pointer", padding:4 }}>☰</button>
-          <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</div>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>OEG PORTAL</div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>👁 {user.full_name?.split(" ")[0] || user.username}</span>
@@ -98,7 +98,7 @@ function ViewerLayout({ user, logout }) {
           <div onClick={() => setNavOpen(false)} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.5)" }} />
           <div style={{ position:"absolute", left:0, top:0, bottom:0, width:260, background:"#1e4d8c", padding:"20px 0", zIndex:201 }}>
             <div style={{ padding:"0 20px 20px", borderBottom:"1px solid #2a5fa8" }}>
-              <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>SAI WARDHA</div>
+              <div style={{ color:"#fff", fontWeight:800, fontSize:16 }}>OEG PORTAL</div>
               <div style={{ color:"#93b8e8", fontSize:11, marginTop:2 }}>VIEWER PORTAL</div>
               <select value={selectedMonthId||""} onChange={e=>{setSelectedMonthId(parseInt(e.target.value));setNavOpen(false);}}
                 style={{ width:"100%", marginTop:12, background:"#163a6e", border:"1px solid #2a5fa8", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
@@ -166,8 +166,8 @@ function AdminLayout({ user, logout, can }) {
     <>
       <div style={{ padding:"16px 20px 16px", borderBottom:"1px solid #2a5490" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-          <div style={{ width:36, height:36, background:"#f59e0b", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>⚙</div>
-          <div><div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>SAI WARDHA</div><div style={{ color:"#93b4d4", fontSize:10, letterSpacing:0.8 }}>ADMIN PORTAL</div></div>
+          <img src="/oeg-logo.jpeg" alt="OEG" style={{ width:38, height:38, objectFit:"contain", borderRadius:8, background:"#fff", padding:2, flexShrink:0 }} />
+          <div><div style={{ color:"#fff", fontWeight:800, fontSize:14 }}>OEG PORTAL</div><div style={{ color:"#93b4d4", fontSize:10, letterSpacing:0.8 }}>ADMIN PORTAL</div></div>
         </div>
         <select value={selectedMonthId||""} onChange={e=>{setSelectedMonthId(parseInt(e.target.value));setNavOpen(false);}}
           style={{ width:"100%", background:"#0f2a55", border:"1px solid #2a5490", borderRadius:6, padding:"8px 10px", color:"#c8dff0", fontSize:12, outline:"none" }}>
@@ -206,7 +206,7 @@ function AdminLayout({ user, logout, can }) {
       <div style={{ background:"#1a3a6b", padding:"0 16px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={()=>setNavOpen(o=>!o)} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:4 }}>☰</button>
-          <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>SAI WARDHA</div>
+          <div style={{ color:"#fff", fontWeight:800, fontSize:15 }}>OEG PORTAL</div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <span style={{ fontSize:12, color:"rgba(255,255,255,0.8)" }}>🔑 {user.full_name?.split(" ")[0]||user.username}</span>
