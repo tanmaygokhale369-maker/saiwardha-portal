@@ -253,7 +253,7 @@ function Layout() {
   const { user, logout, can } = useAuth();
   if (!user) return <LoginPage />;
   if (user.is_admin || can("can_manage_users") || can("can_manage_settings")) return <AdminLayout user={user} logout={logout} can={can} />;
-  if (can("can_view_penalties") || can("can_export")) return <ViewerLayout user={user} logout={logout} />;
+  if (can("can_view_penalties") || can("can_export") || can("can_add_remarks")) return <ViewerLayout user={user} logout={logout} />;
   return <RaterLayout user={user} logout={logout} />;
 }
 

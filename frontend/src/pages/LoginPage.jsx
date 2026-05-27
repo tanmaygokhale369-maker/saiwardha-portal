@@ -22,8 +22,9 @@ export default function LoginPage() {
 
   const modeConfig = {
     admin: { color:"#1a3a6b", label:"Admin", icon:"🔑", desc:"Full administrative control" },
-    viewer: { color:"#1e4d8c", label:"Viewer", icon:"👁️", desc:"View dashboard and ratings" },
-    rater: { color:"#0f766e", label:"Rater", icon:"⭐", desc:"Enter weekly housekeeping grades" },
+    viewer: { color:"#0f766e", label:"Viewer", icon:"👁️", desc:"View dashboard, ratings & penalties" },
+    observer: { color:"#7c3aed", label:"Observer", icon:"🔭", desc:"View dashboard & ratings — no penalties" },
+    rater: { color:"#b45309", label:"Rater", icon:"⭐", desc:"Enter weekly housekeeping grades" },
   };
 
   if (mode==="select") return (
@@ -46,8 +47,9 @@ export default function LoginPage() {
       <div style={{ display:"flex", flexDirection:"column", gap:12, width:"100%", maxWidth:400 }}>
         {[
           { mode:"admin", icon:"🔑", label:"Admin Login", desc:"Manage users, months & view all data", color:"#1a3a6b", accent:"#f59e0b", grad:"linear-gradient(135deg,#1a3a6b,#1e4d8c)" },
-          { mode:"viewer", icon:"👁️", label:"Viewer Login", desc:"View dashboard & ratings (read only)", color:"#0f766e", accent:"#34d399", grad:"linear-gradient(135deg,#0f766e,#059669)" },
-          { mode:"rater", icon:"⭐", label:"Rater Login", desc:"Enter weekly housekeeping grades", color:"#7c3aed", accent:"#a78bfa", grad:"linear-gradient(135deg,#7c3aed,#6d28d9)" },
+          { mode:"viewer", icon:"👁️", label:"Viewer Login", desc:"View dashboard, ratings & penalties", color:"#0f766e", accent:"#34d399", grad:"linear-gradient(135deg,#0f766e,#059669)" },
+          { mode:"observer", icon:"🔭", label:"Observer Login", desc:"View dashboard & ratings — no penalties", color:"#7c3aed", accent:"#a78bfa", grad:"linear-gradient(135deg,#7c3aed,#6d28d9)" },
+          { mode:"rater", icon:"⭐", label:"Rater Login", desc:"Enter weekly housekeeping grades", color:"#b45309", accent:"#fbbf24", grad:"linear-gradient(135deg,#b45309,#d97706)" },
         ].map(c => (
           <button key={c.mode} onClick={()=>setMode(c.mode)} style={{
             background:"#fff", border:"none", borderRadius:16, padding:0,
