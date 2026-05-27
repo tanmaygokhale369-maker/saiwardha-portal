@@ -31,7 +31,7 @@ export default function LoginPage() {
       <div style={{ textAlign:"center", marginBottom:40 }}>
         <div style={{ marginBottom:16 }}>
           <img src="/oeg-logo.jpeg" alt="OEG India Logo"
-            style={{ width:120, height:120, objectFit:"contain", borderRadius:"50%", background:"#fff", padding:4, boxShadow:"0 4px 20px rgba(26,58,107,0.2)" }}
+            style={{ width:140, height:140, objectFit:"contain", background:"transparent" }}
           />
         </div>
         <h1 style={{ margin:"0 0 4px", fontSize:38, fontWeight:900, color:"#1a2744", letterSpacing:"-1px", lineHeight:1 }}>SAI WARDHA</h1>
