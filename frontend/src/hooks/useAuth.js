@@ -4,18 +4,19 @@ import api from "../utils/api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sw_user")); } catch { return null; }
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("sw_token");
     if (token) {
+      // Always fetch fresh user data from server - never use cached localStorage
       api.get("/auth/me").then(r => {
         setUser(r.data);
+        // Update cached user with fresh data
         localStorage.setItem("sw_user", JSON.stringify(r.data));
       }).catch(() => {
+        // Token invalid - clear everything
         localStorage.removeItem("sw_token");
         localStorage.removeItem("sw_user");
         setUser(null);
@@ -43,7 +44,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading, can }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

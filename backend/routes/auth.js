@@ -24,9 +24,22 @@ router.post("/login", async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
-router.get("/me", authenticate, async (req, res) => {
-  const { password_hash, ...safeUser } = req.user;
-  res.json(safeUser);
+router.get("/me", authenticate, async (req, res, next) => {
+  try {
+    // Always fetch fresh from DB to get latest role/assigned_areas
+    const db = getDb();
+    const freshUser = await db.prepare(`
+      SELECT u.id, u.username, u.full_name, u.role_id, u.is_active, u.assigned_areas,
+             r.can_rate, r.can_view_penalties, r.can_add_remarks,
+             r.can_export, r.can_manage_users, r.can_manage_settings,
+             r.is_admin, r.name as role_name
+      FROM users u LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = $1 AND u.is_active = 1
+    `).get(req.user.id);
+    if (!freshUser) return res.status(401).json({ error: "User not found" });
+    const { password_hash, ...safeUser } = freshUser;
+    res.json(safeUser);
+  } catch(e) { next(e); }
 });
 
 router.post("/change-password", authenticate, async (req, res, next) => {
